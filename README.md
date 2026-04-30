@@ -1,5 +1,6 @@
 # NexLock-
-![Logo NexLock](https://lock-6.com.ar/wp-content/uploads/2021/09/PASADOR-P100-1.jpg)
+<img width="1600" height="896" alt="Estoy creando un sistema de seguridad para en su mayoria puertas, el sistema consiste en un pin de bloqueo con un face id  El nombre es NexLock, quiero un logo minimalista (1)" src="https://github.com/user-attachments/assets/98666471-9a5e-4c28-bdb9-c486fca51966" />
+
 NexLock es un sistema inteligente de control de acceso físico que combina múltiples métodos de autenticación con monitoreo en tiempo real.
 
 El proyecto integra hardware (ESP32 + sensores) y software (backend + aplicación web) para crear una solución completa capaz de:
