@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexLock — Panel de Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="8" width="11" height="9" rx="1.5" stroke="white" stroke-width="1.5"/>
+          <path d="M4.5 8V6a4.5 4.5 0 0 1 9 0v2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="7.5" cy="13" r="1.2" fill="white"/>
+          <line x1="7.5" y1="14.2" x2="7.5" y2="15.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="logo-text">Nex<strong>Lock</strong></span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="dashboard">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="1" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" data-view="logs">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="1.5" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="5.5" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="4" y1="7.5" x2="11" y2="7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="4" y1="9.5" x2="7.5" y2="9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Historial
+      </button>
+      <button class="nav-item" data-view="users">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="2.8" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3 2.5-4.5 5.5-4.5S13 11 13 14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Usuarios
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-row">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-label">Conectando</span>
+      </div>
+      <div class="footer-time" id="header-time"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="view active" id="view-dashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-sub">Monitoreo en tiempo real</p>
+        </div>
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          En vivo
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <p class="stat-label">Total intentos</p>
+          <p class="stat-value" id="stat-total-val">—</p>
+        </div>
+        <div class="stat-card c-success">
+          <p class="stat-label">Accesos OK</p>
+          <p class="stat-value" id="stat-ok-val">—</p>
+        </div>
+        <div class="stat-card c-danger">
+          <p class="stat-label">Denegados</p>
+          <p class="stat-value" id="stat-fail-val">—</p>
+        </div>
+        <div class="stat-card c-warn">
+          <p class="stat-label">Luz baja</p>
+          <p class="stat-value" id="stat-light-val">—</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Actividad reciente</h2>
+        </div>
+        <div class="live-feed" id="live-feed">
+          <p class="empty-msg">Esperando eventos...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="view" id="view-logs">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Historial</h1>
+          <p class="page-sub">Registro completo de accesos</p>
+        </div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="">Todos</button>
+          <button class="filter-btn" data-filter="success">Exitosos</button>
+          <button class="filter-btn" data-filter="failed">Fallidos</button>
+        </div>
+      </div>
+
+      <div class="card no-pad">
+        <table class="tbl" id="logs-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Dispositivo</th>
+              <th>Usuario</th>
+              <th>Resultado</th>
+              <th>Razón</th>
+              <th>Luz</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody">
+            <tr><td colspan="7" class="empty-msg">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- USUARIOS -->
+    <section class="view" id="view-users">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Usuarios</h1>
+          <p class="page-sub">Gestión de acceso al sistema</p>
+        </div>
+      </div>
+
+      <div class="users-layout">
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Nuevo usuario</h2>
+          </div>
+          <div class="form-body">
+            <div class="field">
+              <label class="field-label">Nombre completo</label>
+              <input class="field-input" type="text" id="user-name" placeholder="Ej: Juan García" maxlength="50" />
+            </div>
+            <div class="field">
+              <label class="field-label">PIN <span class="field-hint">4–8 dígitos numéricos</span></label>
+              <input class="field-input" type="password" id="user-pin" placeholder="••••" maxlength="8" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label class="field-label">Rol</label>
+              <select class="field-input" id="user-role">
+                <option value="user">Usuario</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <button class="btn-blue" id="btn-create-user">Crear usuario</button>
+            <p class="form-msg" id="form-msg"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Usuarios registrados</h2>
+          </div>
+          <div id="users-list">
+            <p class="empty-msg">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL -->
+  <div class="modal-wrap" id="modal" style="display:none">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 class="modal-title" id="modal-title">Captura</h3>
+        <button class="modal-close" id="modal-close">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <img class="modal-img" id="modal-img" src="" alt="Captura del intento" />
+      <div class="modal-meta" id="modal-meta"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
