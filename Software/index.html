@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexLock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="9" width="12" height="10" rx="2" stroke="white" stroke-width="1.8"/>
+          <path d="M6.5 9V7A3.5 3.5 0 0 1 13.5 7v2" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="10" cy="14.5" r="1.5" fill="white"/>
+        </svg>
+      </div>
+      <span>Nex<strong>Lock</strong></span>
+    </div>
+
+    <nav>
+      <a class="nav-link active" data-view="dashboard">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.4"/><rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-link" data-view="logs">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Historial
+      </a>
+      <a class="nav-link" data-view="users">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Usuarios
+      </a>
+    </nav>
+
+    <div class="sidebar-status">
+      <div class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Conectando…</span>
+      </div>
+      <div class="status-time" id="clock"></div>
+    </div>
+  </aside>
+
+  <!-- CONTENIDO -->
+  <main class="content">
+
+    <!-- ══════════════ DASHBOARD ══════════════ -->
+    <section class="view active" id="view-dashboard">
+
+      <div class="page-top">
+        <div class="page-title-wrap">
+          <h1>Dashboard</h1>
+          <p>Actividad del sistema en tiempo real</p>
+        </div>
+        <div class="live-chip">
+          <span class="pulse-dot"></span>
+          En vivo
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-ico neutral">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4l2.5 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <p class="stat-label">Total de intentos</p>
+            <p class="stat-num" id="s-total">—</p>
+          </div>
+        </div>
+        <div class="stat-box success">
+          <div class="stat-ico success">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 10.5l2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <p class="stat-label">Accesos correctos</p>
+            <p class="stat-num" id="s-ok">—</p>
+          </div>
+        </div>
+        <div class="stat-box danger">
+          <div class="stat-ico danger">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <p class="stat-label">Intentos fallidos</p>
+            <p class="stat-num" id="s-fail">—</p>
+          </div>
+        </div>
+        <div class="stat-box rate">
+          <div class="stat-ico rate">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 15l5-5 4 3 5-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <p class="stat-label">Tasa de éxito</p>
+            <p class="stat-num" id="s-rate">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feed reciente -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Últimos accesos</h2>
+          <span class="card-sub" id="feed-count"></span>
+        </div>
+        <div id="feed-list">
+          <div class="empty-state">
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="14" stroke="#CBD5E1" stroke-width="2"/><path d="M18 12v6l4 4" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/></svg>
+            <p>Sin actividad todavía</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════ HISTORIAL ══════════════ -->
+    <section class="view" id="view-logs">
+
+      <div class="page-top">
+        <div class="page-title-wrap">
+          <h1>Historial</h1>
+          <p>Registro completo de intentos de acceso</p>
+        </div>
+        <div class="filter-tabs">
+          <button class="tab active" data-filter="">Todos</button>
+          <button class="tab" data-filter="success">Exitosos</button>
+          <button class="tab" data-filter="fail">Fallidos</button>
+        </div>
+      </div>
+
+      <div class="card no-pad">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Fecha y hora</th>
+              <th>Dispositivo</th>
+              <th>Usuario</th>
+              <th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody id="logs-body">
+            <tr><td colspan="4"><div class="empty-state"><p>Cargando…</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- ══════════════ USUARIOS ══════════════ -->
+    <section class="view" id="view-users">
+
+      <div class="page-top">
+        <div class="page-title-wrap">
+          <h1>Usuarios</h1>
+          <p>Gestioná quién puede acceder</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+
+        <!-- Formulario -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Agregar usuario</h2>
+          </div>
+          <div class="form-wrap">
+            <div class="field-group">
+              <label>Nombre</label>
+              <input type="text" id="u-name" placeholder="Ej: Juan García" maxlength="50"/>
+            </div>
+            <div class="field-group">
+              <label>PIN <span class="hint">4 a 8 dígitos</span></label>
+              <input type="password" id="u-pin" placeholder="••••" maxlength="8" inputmode="numeric"/>
+            </div>
+            <div class="field-group">
+              <label>Rol</label>
+              <select id="u-role">
+                <option value="user">Usuario</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+            <button class="btn-primary" id="btn-add">Crear usuario</button>
+            <p class="form-feedback" id="form-msg"></p>
+          </div>
+        </div>
+
+        <!-- Lista -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Usuarios registrados</h2>
+            <span class="card-sub" id="users-count"></span>
+          </div>
+          <div id="users-list">
+            <div class="empty-state"><p>Cargando…</p></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
