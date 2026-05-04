@@ -1,5 +1,6 @@
 # NexLock-
-<img width="800" height="350" alt="Estoy creando un sistema de seguridad para en su mayoria puertas, el sistema consiste en un pin de bloqueo con un face id  El nombre es NexLock, quiero un logo minimalista (1)" src="https://github.com/user-attachments/assets/98666471-9a5e-4c28-bdb9-c486fca51966" />
+<img width="1254" height="1254" alt="WhatsApp Image 2026-05-04 at 15 50 48" src="https://github.com/user-attachments/assets/b9a6da91-9eb7-4772-941a-f72dd756eabf" />
+
 
 
 NexLock es un sistema inteligente de control de acceso físico que combina múltiples métodos de autenticación con monitoreo en tiempo real.
