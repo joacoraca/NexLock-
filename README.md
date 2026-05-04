@@ -1,5 +1,5 @@
 # NexLock-
-<img width="941" height="941" alt="WhatsApp Image 2026-05-04 at 15 50 48" src="https://github.com/user-attachments/assets/b9a6da91-9eb7-4772-941a-f72dd756eabf" />
+<img width="627" height="627" alt="WhatsApp Image 2026-05-04 at 15 50 48" src="https://github.com/user-attachments/assets/b9a6da91-9eb7-4772-941a-f72dd756eabf" />
 
 
 
