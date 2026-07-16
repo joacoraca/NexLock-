@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Logs: el ESP32 y el frontend pueden leer y escribir
+    match /logs/{logId} {
+      allow read, write: if true;
+    }
+
+    // Usuarios: el panel web puede leer, crear y eliminar
+    match /users/{userId} {
+      allow read, write, delete: if true;
+    }
+  }
+}
