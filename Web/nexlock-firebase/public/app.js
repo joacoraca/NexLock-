@@ -1,8 +1,8 @@
-// ═══════════════════════════════════════════════════════
-// NexLock — app.js
+
+// NexLock, mi app.js. La animacion y el control del front al backend de Firebase.
 // Firebase Auth + Firestore directo
 // PIN hasheado con SHA-256
-// ═══════════════════════════════════════════════════════
+
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
@@ -13,7 +13,7 @@ import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-// ── 👇 TU CONFIG DE FIREBASE ──────────────────────────
+// TU CONFIG DE FIREBASE 
 const firebaseConfig = {
   apiKey:            "AIzaSyBLiRX-M-1dqJ7VlJ8LlGutS9fjVlr8H3g",
   authDomain:        "nexlock-24aed.firebaseapp.com",
@@ -22,7 +22,7 @@ const firebaseConfig = {
   messagingSenderId: "375522853727",
   appId:             "1:375522853727:web:39dfd23292fe591ef2acea",
 };
-// ──────────────────────────────────────────────────────
+// ──
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db   = getFirestore(firebaseApp);
@@ -31,13 +31,13 @@ const auth = getAuth(firebaseApp);
 const logsCol  = collection(db, 'logs');
 const usersCol = collection(db, 'users');
 
-// ── SHA-256 ────────────────────────────────────────────
+// ── SHA-256 
 async function sha256(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// ── Helpers ───────────────────────────────────────────
+// Helpers
 const $  = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 
@@ -59,16 +59,16 @@ function setConnected(ok) {
   $('#status-text').textContent = ok ? 'Conectado' : 'Sin conexión';
 }
 
-// ── Reloj ─────────────────────────────────────────────
+// Reloj 
 setInterval(() => {
   $('#clock').textContent = new Date().toLocaleString('es-AR', { hour12: false });
 }, 1000);
 
-// ═══════════════════════════════════════════════════════
-// AUTH — pantalla de login
-// ═══════════════════════════════════════════════════════
 
-// Escucha cambios de sesión — muestra login o app según estado
+// AUTH — pantalla de login
+
+
+// Escucha cambios de sesión | muestra login o app según estado
 onAuthStateChanged(auth, user => {
   if (user) {
     // Logeado: mostrar app, ocultar login
@@ -110,9 +110,9 @@ $('#btn-logout').addEventListener('click', async () => {
   await signOut(auth);
 });
 
-// ═══════════════════════════════════════════════════════
+
 // STATS
-// ═══════════════════════════════════════════════════════
+
 async function loadStats() {
   try {
     const [all, ok, fail] = await Promise.all([
@@ -128,9 +128,9 @@ async function loadStats() {
   } catch (e) { console.error('Stats error:', e); }
 }
 
-// ═══════════════════════════════════════════════════════
+
 // DASHBOARD
-// ═══════════════════════════════════════════════════════
+
 function initDashboard() {
   const q = query(logsCol, orderBy('timestamp', 'desc'), limit(20));
 
@@ -172,9 +172,9 @@ function initDashboard() {
   }, () => setConnected(false));
 }
 
-// ═══════════════════════════════════════════════════════
+
 // HISTORIAL
-// ═══════════════════════════════════════════════════════
+
 let unsubLogs = null;
 
 function loadLogs(filter = 'all') {
@@ -206,9 +206,9 @@ function loadLogs(filter = 'all') {
   });
 }
 
-// ═══════════════════════════════════════════════════════
+
 // USUARIOS
-// ═══════════════════════════════════════════════════════
+
 function initUsers() {
   const q = query(usersCol, orderBy('createdAt', 'desc'));
   onSnapshot(q, snap => {
@@ -235,9 +235,9 @@ function initUsers() {
   });
 }
 
-// ═══════════════════════════════════════════════════════
+
 // CREAR USUARIO
-// ═══════════════════════════════════════════════════════
+
 $('#btn-add').addEventListener('click', async () => {
   const name = $('#u-name').value.trim();
   const pin  = $('#u-pin').value.trim();
@@ -274,9 +274,9 @@ $('#btn-add').addEventListener('click', async () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════
+
 // ELIMINAR USUARIO
-// ═══════════════════════════════════════════════════════
+
 async function deleteUser(id) {
   if (!confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) return;
   try {
@@ -287,9 +287,9 @@ async function deleteUser(id) {
 }
 window.deleteUser = deleteUser;
 
-// ═══════════════════════════════════════════════════════
+
 // NAVEGACIÓN
-// ═══════════════════════════════════════════════════════
+
 let activeFilter = 'all';
 
 $$('.nav-link').forEach(link => {

@@ -2,14 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Logs: el ESP32 y el frontend pueden leer y escribir
+    // 1. Logs: el ESP32 y el frontend pueden escribir y leer
     match /logs/{logId} {
-      allow read, write: if true;
+      // Permitimos crear logs nuevos (necesario para el ESP32 y el sistema)
+      // Pero bloqueamos que cualquiera pueda borrar (delete) o modificar (update) el historial
+      allow read, create: if true;
+      allow update, delete: if false; 
     }
 
-    // Usuarios: el panel web puede leer, crear y eliminar
+    // 2. Usuarios: Solo el administrador o el panel autenticado debería meter mano
     match /users/{userId} {
-      allow read, write, delete: if true;
+      // Exigimos que el usuario haya iniciado sesión en la web (Firebase Auth)
+      allow read, write: if request.auth != null;
     }
   }
 }
