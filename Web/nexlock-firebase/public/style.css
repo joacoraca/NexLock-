@@ -42,20 +42,27 @@ body {
 }
 
 .login-box {
-  width: 50vw;
+  width: 50%;
   max-width: 400px;
-  margin: 10vh 25vw;
+  margin: 15vh 35vw;
   padding: 40px 20px;
+  border-radius: var(--radius);
 }
 
 .login-logo {
   display: flex;
+  margin-bottom: 20px;
   align-items: center;
   gap: 10px;
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 30px;
+}
+
+.login-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
 }
 
 .login-icon-img {
