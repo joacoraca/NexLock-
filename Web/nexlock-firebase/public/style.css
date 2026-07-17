@@ -41,6 +41,28 @@ body {
   min-height: 100vh;
 }
 
+.login-box {
+  width: 50vw;
+  max-width: 400px;
+  margin: 10vh 25vw;
+  padding: 40px 20px;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 30px;
+}
+
+.login-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
 
 .sidebar {
   width: var(--sidebar-w);
@@ -53,12 +75,6 @@ body {
   z-index: 100;
 }
 
-.login-box {
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 40px 20px;
-}
 
 .logo {
   display: flex;
