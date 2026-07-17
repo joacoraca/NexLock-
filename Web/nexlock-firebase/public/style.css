@@ -40,13 +40,14 @@ body {
   display: flex;
   min-height: 100vh;
 }
-
+/*PANEL DE LOGIN*/
 .login-box {
   width: 50%;
   max-width: 400px;
   margin: 15vh 35vw;
   padding: 40px 20px;
   border-radius: var(--radius);
+  background-color:var(--sky-border);
 }
 
 .login-logo {
@@ -70,6 +71,15 @@ body {
   height: 24px;
   object-fit: contain;
 }
+
+.login-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 100%;
+  color: var(--text-2);
+}
+
+/* SIDEBAR */
 
 .sidebar {
   width: var(--sidebar-w);
