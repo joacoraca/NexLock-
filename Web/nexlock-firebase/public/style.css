@@ -32,30 +32,40 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+#login-screen {
+  display: flex;
+  justify-content: center; /* Centra horizontalmente */
+  align-items: center;    /* Centra verticalmente */
+  min-height: 100vh;      /* Ocupa toda la altura de la ventana */     /* Asegura que ocupe toda la altura de la ventana */
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
   background: var(--bg);
   color: var(--text);
-  display: flex;
-  min-height: 100vh;
+  margin: 0;
 }
 /*PANEL DE LOGIN*/
 .login-box {
+  max-width: 26rem;      /* ~416px base: Límite para pantallas grandes */
+  min-width: 18rem;
   width: 50%;
-  max-width: 400px;
-  margin: 15vh 35vw;
   padding: 40px 20px;
   border-radius: var(--radius);
   background-color:var(--sky-border);
+  box-shadow: var(--shadow-md);
+  
 }
+
 
 .login-logo {
   display: flex;
   margin-bottom: 20px;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  font-size: 22px;
+  font-size: 3rem;
   font-weight: 700;
   color: var(--text);
 }
@@ -67,9 +77,25 @@ body {
 }
 
 .login-icon-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 35%;
+}
+
+.login-instructions {
+  padding-bottom: 3%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding: 0 15%;
 }
 
 .login-footer {
@@ -103,13 +129,7 @@ body {
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
 .logo strong { color: #fff; font-weight: 700; }
-.logo-icon {
-  width: 36px; height: 36px;
-  background: var(--blue-mid);
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+
 
 nav {
   flex: 1;
@@ -183,7 +203,7 @@ nav {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 50px;
   gap: 16px;
   flex-wrap: wrap;
 }
