@@ -67,20 +67,54 @@ setInterval(() => {
 
 // AUTH — pantalla de login
 
+const REMEMBER_KEY = 'nexlock_remember_email';
+
+function setLoginLoading(loading) {
+  const btn = $('#btn-login');
+  btn.disabled = loading;
+  btn.classList.toggle('loading', loading);
+  btn.querySelector('.btn-login-text').textContent = loading ? 'Ingresando…' : 'Ingresar';
+}
+
+function showLoginError(msg) {
+  const errEl = $('#login-error');
+  const box   = document.querySelector('.login-box');
+  errEl.textContent = msg;
+  box.classList.remove('shake');
+  void box.offsetWidth;
+  box.classList.add('shake');
+}
+
+// Restaurar email guardado
+const savedEmail = localStorage.getItem(REMEMBER_KEY);
+if (savedEmail) {
+  $('#login-email').value = savedEmail;
+  $('#remember-email').checked = true;
+}
+
+// Mostrar / ocultar contraseña
+$('#toggle-password').addEventListener('click', () => {
+  const input  = $('#login-password');
+  const toggle = $('#toggle-password');
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  toggle.classList.toggle('visible', !visible);
+  toggle.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  toggle.title = visible ? 'Mostrar contraseña' : 'Ocultar contraseña';
+});
 
 // Escucha cambios de sesión | muestra login o app según estado
 onAuthStateChanged(auth, user => {
   if (user) {
-    // Logeado: mostrar app, ocultar login
     $('#login-screen').style.display  = 'none';
     $('#app-screen').style.display    = 'flex';
     $('#user-email').textContent      = user.email;
     initDashboard();
     initUsers();
   } else {
-    // No logeado: mostrar login, ocultar app
     $('#login-screen').style.display  = 'flex';
     $('#app-screen').style.display    = 'none';
+    setLoginLoading(false);
   }
 });
 
@@ -92,16 +126,18 @@ $('#login-form').addEventListener('submit', async (e) => {
   const errEl    = $('#login-error');
 
   errEl.textContent = '';
-  $('#btn-login').textContent = 'Ingresando…';
-  $('#btn-login').disabled = true;
+  setLoginLoading(true);
 
   try {
     await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged se encarga del resto
+    if ($('#remember-email').checked) {
+      localStorage.setItem(REMEMBER_KEY, email);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
   } catch (err) {
-    errEl.textContent = 'Email o contraseña incorrectos.';
-    $('#btn-login').textContent = 'Ingresar';
-    $('#btn-login').disabled = false;
+    showLoginError('Email o contraseña incorrectos.');
+    setLoginLoading(false);
   }
 });
 
