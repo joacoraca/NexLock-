@@ -46,6 +46,7 @@ body {
   color: var(--text);
   margin: 0;
 }
+
 /*PANEL DE LOGIN*/
 .login-box {
   max-width: 26rem;      /* ~416px base: Límite para pantallas grandes */
@@ -71,15 +72,15 @@ body {
 }
 
 .login-title {
-  font-size: 18px;
+  font-size: 30px;
   font-weight: 600;
+  text-shadow: black;
   margin-bottom: 20px;
 }
 
 .login-icon-img {
   width: 40px;
   height: 40px;
-  object-fit: cover;
   border-radius: 35%;
 }
 
