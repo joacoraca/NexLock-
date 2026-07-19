@@ -179,8 +179,8 @@ function initDashboard() {
       feedEl.innerHTML = `
         <div class="empty-state">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="18" r="14" stroke="#CBD5E1" stroke-width="2"/>
-            <path d="M18 12v6l4 4" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="18" cy="18" r="14" stroke="currentColor" stroke-width="2"/>
+            <path d="M18 12v6l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
           <p>Sin actividad todavía</p>
         </div>`;
