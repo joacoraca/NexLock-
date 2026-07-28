@@ -1,6 +1,6 @@
 
 Web readme · MD
-# NexLock — Panel Web
+# NexLock - Panel Web
  
 Panel de administración web para NexLock, el sistema de control de acceso físico. Permite gestionar usuarios, ver el historial de accesos en tiempo real y monitorear el estado del dispositivo, todo conectado directamente a Firebase.
  
@@ -9,7 +9,7 @@ Panel de administración web para NexLock, el sistema de control de acceso físi
 - **Frontend:** HTML + CSS + JavaScript 
 - **Backend:** Firebase (Auth + Firestore), sin Cloud Functions
 - **Hosting:** Firebase Hosting
-- **Hardware:** ESP32 (autenticación y lectura de eventos)
+- **Hardware:** ESP32 y ESP32-CAM (autenticación y lectura de eventos)
 ## Estructura
  
 ```
@@ -41,7 +41,7 @@ En resumen:
 cd nexlock-firebase
 firebase deploy
 ```
- 
+(Tenes que tener instalado las firebase tools.)
 ## Nota de seguridad
  
-El `firebaseConfig` (apiKey, projectId, etc.) que está en `app.js` es información pública del cliente de Firebase — no es un secreto, y es normal que esté en el frontend. La seguridad real la dan las **Firestore rules**. Vale la pena revisar que `firestore.rules` esté bien restringido antes de dar por cerrado el proyecto.
+El `firebaseConfig` (apiKey, projectId, etc.) que está en `app.js` es información pública del cliente de Firebase. La seguridad real la dan las **Firestore rules**. Vale la pena revisar que `firestore.rules` esté bien restringido antes de dar por cerrado el proyecto.
