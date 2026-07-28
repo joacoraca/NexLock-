@@ -6,7 +6,7 @@ Panel de administración web para NexLock, el sistema de control de acceso físi
  
 ## Stack
  
-- **Frontend:** HTML + CSS + JavaScript (vanilla, sin frameworks)
+- **Frontend:** HTML + CSS + JavaScript 
 - **Backend:** Firebase (Auth + Firestore), sin Cloud Functions
 - **Hosting:** Firebase Hosting
 - **Hardware:** ESP32 (autenticación y lectura de eventos)
