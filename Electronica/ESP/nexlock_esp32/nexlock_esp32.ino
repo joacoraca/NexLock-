@@ -14,15 +14,17 @@
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
 #if __has_include("secrets.h")
   #include "secrets.h"
+#elif __has_include("../secrets.h")
+  #include "../secrets.h"
 #else
-  #warning "No se encontro secrets.h. Usando valores por defecto de ejemplo."
-  #define WIFI_SSID           "TU_WIFI"
-  #define WIFI_PASSWORD       "TU_PASSWORD"
+  #warning "No se encontro secrets.h. Usando valores por defecto configurados."
+  #define WIFI_SSID           "Racamatos"
+  #define WIFI_PASSWORD       "Ateyalfa2026"
   #define FIREBASE_PROJECT_ID "nexlock-24aed"
   #define FIREBASE_API_KEY    "AIzaSyBLiRX-M-1dqJ7VlJ8LlGutS9fjVlr8H3g"
   #define DEVICE_ID           "door_1"
   #define DEVICE_AUTH_EMAIL   "door_1@nexlock.device"
-  #define DEVICE_AUTH_PASS    "PasswordDispositivo123!"
+  #define DEVICE_AUTH_PASS    "NexLockDevice2026!"
 #endif
 
 // ── PINES DE HARDWARE (Segun esquematico NexLock) ────────────────────────────
