@@ -187,7 +187,7 @@ $('#login-form').addEventListener('submit', async (e) => {
 // Cerrar sesión
 async function doLogout() {
   try {
-    setMenuOpen(false);
+    if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
     await signOut(auth);
   } catch (err) {
     console.error('Error al cerrar sesión:', err);
@@ -614,41 +614,6 @@ async function deleteUser(id) {
 window.deleteUser = deleteUser;
 
 
-// MENÚ LATERAL RESPONSIVO (DRAWER EN CELULARES)
-// Nota: Las funciones de apertura/cierre se definen de forma síncrona en index.html
-// para estar disponibles inmediatamente. Aquí nos aseguramos de sincronizarlas.
-function setMenuOpen(open) {
-  if (typeof window.setMenuOpen === 'function') {
-    window.setMenuOpen(open);
-  } else {
-    const sb = $('#sidebar');
-    const bd = $('#sidebar-backdrop');
-    if (sb) sb.classList.toggle('open', Boolean(open));
-    if (bd) bd.classList.toggle('open', Boolean(open));
-    document.body.classList.toggle('menu-open', Boolean(open));
-  }
-}
-
-function openMobileMenu() {
-  setMenuOpen(true);
-}
-
-function closeMobileMenu() {
-  setMenuOpen(false);
-}
-
-function toggleMobileMenu() {
-  const sb = $('#sidebar');
-  const isOpen = sb ? sb.classList.contains('open') : false;
-  setMenuOpen(!isOpen);
-}
-
-window.setMenuOpen = setMenuOpen;
-window.openMobileMenu = openMobileMenu;
-window.closeMobileMenu = closeMobileMenu;
-window.toggleMobileMenu = toggleMobileMenu;
-
-
 // NAVEGACIÓN
 
 let activeFilter = 'all';
@@ -659,17 +624,10 @@ function switchView(view) {
   $$('.view').forEach(v => v.classList.remove('active'));
   $(`#view-${view}`)?.classList.add('active');
   if (view === 'logs') loadLogs(activeFilter);
-  setMenuOpen(false); // Cierra el menú al cambiar de sección en móviles
+  if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 window.switchView = switchView;
-
-$$('.nav-link').forEach(link => {
-  link.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchView(link.dataset.view);
-  });
-});
 
 $$('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
