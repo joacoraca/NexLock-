@@ -64,6 +64,14 @@ node_modules/
 
 # dotenv environment variables file
 .env
+secrets.h
+
+# Arduino / PlatformIO
+.pio/
+.vscode/
+build/
+*.bin
+*.elf
 
 # dataconnect generated files
 .dataconnect
