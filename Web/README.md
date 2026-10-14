@@ -26,11 +26,11 @@ Web/
  
 ## Funcionalidades
  
-- **Dashboard:** estadísticas en vivo (intentos totales, accesos correctos, fallidos, tasa de éxito) y feed de últimos accesos.
-- **Historial:** registro completo de intentos de acceso, filtrable por exitosos/fallidos.
-- **Usuarios:** alta de usuarios con PIN (4 a 8 dígitos) y rol (usuario/administrador).
+- **Dashboard:** estadísticas en vivo (intentos totales, accesos correctos, fallidos, tasa de éxito), feed en tiempo real con chips de verificación doble (PIN + Rostro), y estado de conexión de los dispositivos (ESP32 y ESP32-CAM).
+- **Historial:** registro completo de intentos de acceso con detalle de resultado de PIN y reconocimiento facial, filtrable por exitosos/fallidos.
+- **Usuarios & Biometría Facial:** alta de usuarios con PIN (4 a 8 dígitos), rol y captura de rostro asistida por IA (MediaPipe Face Detection en el navegador) recortada a 320×320 px para comparación biométrica. Posibilidad de registrar o actualizar el rostro en cualquier momento.
 - **Autenticación:** login con email y contraseña vía Firebase Auth.
-- **Seguridad del PIN:** el PIN se hashea con SHA-256 en el cliente antes de guardarse; nunca se transmite ni se almacena en texto plano. El ESP32 hashea de la misma forma y compara contra Firestore.
+- **Seguridad:** el PIN se hashea con SHA-256 en el cliente antes de guardarse; los rostros de referencia se almacenan de forma protegida en Firestore (`faces/{userId}`) accesibles únicamente para administradores y dispositivos autorizados.
 ## Cómo levantarlo
  
 La guía de instalación completa (configuración de Firebase, índices de Firestore, deploy y setup del ESP32) está en [`nexlock-firebase/README.md`](./nexlock-firebase/README.md).

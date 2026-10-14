@@ -2,18 +2,55 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Logs: el ESP32 y el frontend pueden escribir y leer
+    // ── Quién es quién ──────────────────────────────────────────────────────
+    // Admins del panel web : cualquier cuenta de Firebase Auth que NO sea de dispositivo.
+    // Dispositivos (ESP32 / ESP32-CAM): cuentas de Firebase Auth con email
+    //   terminado en "@nexlock.device" (ej: door_1@nexlock.device, door_1-cam@nexlock.device).
+    //   Se crean a mano en Firebase Console → Authentication → Agregar usuario.
+    //
+    // IMPORTANTE: desactivar el registro público en Firebase Console →
+    //   Authentication → Configuración → Acciones del usuario → "Habilitar creación (registro)".
+    //   Si no, cualquiera con la apiKey podría crearse una cuenta.
+    function signedIn() { return request.auth != null; }
+    function isDevice() {
+      return signedIn()
+        && request.auth.token.get('email', '').matches('.*@nexlock[.]device$');
+    }
+    function isAdmin() { return signedIn() && !isDevice(); }
+
+    // 1. Logs: el ESP32 crea registros, el panel los lee. Nadie edita ni borra el historial.
     match /logs/{logId} {
-      // Permitimos crear logs nuevos (necesario para el ESP32 y el sistema)
-      // Pero bloqueamos que cualquiera pueda borrar (delete) o modificar (update) el historial
-      allow read, create: if true;
-      allow update, delete: if false; 
+      allow read:   if isAdmin();
+      allow create: if (isDevice() || isAdmin())
+                    && request.resource.data.result in ['success', 'fail'];
+      allow update, delete: if false;
     }
 
-    // 2. Usuarios: Solo el administrador o el panel autenticado debería meter mano
+    // 2. Usuarios: el panel los gestiona; los dispositivos solo leen (buscar por hash de PIN).
     match /users/{userId} {
-      // Exigimos que el usuario haya iniciado sesión en la web (Firebase Auth)
-      allow read, write: if request.auth != null;
+      allow read:   if isAdmin() || isDevice();
+      allow create, update: if isAdmin()
+                    && request.resource.data.name is string
+                    && request.resource.data.pin is string
+                    && request.resource.data.pin.size() == 64
+                    && request.resource.data.role in ['user', 'admin'];
+      allow delete: if isAdmin();
+    }
+
+    // 3. Rostros de referencia (JPEG base64). Dato biométrico: nunca público.
+    //    El panel los escribe; el ESP32-CAM los lee para compararlos con Face++.
+    match /faces/{userId} {
+      allow read:   if isAdmin() || isDevice();
+      allow create, update: if isAdmin()
+                    && request.resource.data.image is string
+                    && request.resource.data.image.size() < 700000;
+      allow delete: if isAdmin();
+    }
+
+    // 4. Estado de los dispositivos (heartbeat del ESP32 → tarjeta "Dispositivos" del dashboard)
+    match /devices/{deviceId} {
+      allow read:  if isAdmin() || isDevice();
+      allow write: if isDevice() || isAdmin();
     }
   }
 }
