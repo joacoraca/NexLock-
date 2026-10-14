@@ -197,14 +197,6 @@ async function doLogout() {
 }
 window.doLogout = doLogout;
 
-$('#btn-logout')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  doLogout();
-});
-$('#btn-logout-mobile')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  doLogout();
-});
 
 
 // VERIFICACIÓN (PIN + ROSTRO) — cómo se muestra cada log
@@ -623,12 +615,26 @@ window.deleteUser = deleteUser;
 
 
 // MENÚ LATERAL RESPONSIVO (DRAWER EN CELULARES)
+// Nota: Las funciones de apertura/cierre se definen de forma síncrona en index.html
+// para estar disponibles inmediatamente. Aquí nos aseguramos de sincronizarlas.
 function setMenuOpen(open) {
-  const sb = $('#sidebar');
-  const bd = $('#sidebar-backdrop');
-  if (sb) sb.classList.toggle('open', Boolean(open));
-  if (bd) bd.classList.toggle('open', Boolean(open));
-  document.body.classList.toggle('menu-open', Boolean(open));
+  if (typeof window.setMenuOpen === 'function') {
+    window.setMenuOpen(open);
+  } else {
+    const sb = $('#sidebar');
+    const bd = $('#sidebar-backdrop');
+    if (sb) sb.classList.toggle('open', Boolean(open));
+    if (bd) bd.classList.toggle('open', Boolean(open));
+    document.body.classList.toggle('menu-open', Boolean(open));
+  }
+}
+
+function openMobileMenu() {
+  setMenuOpen(true);
+}
+
+function closeMobileMenu() {
+  setMenuOpen(false);
 }
 
 function toggleMobileMenu() {
@@ -637,26 +643,10 @@ function toggleMobileMenu() {
   setMenuOpen(!isOpen);
 }
 
-function closeMobileMenu() {
-  setMenuOpen(false);
-}
-
 window.setMenuOpen = setMenuOpen;
-window.toggleMobileMenu = toggleMobileMenu;
+window.openMobileMenu = openMobileMenu;
 window.closeMobileMenu = closeMobileMenu;
-
-$('#btn-menu-toggle')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  toggleMobileMenu();
-});
-$('#btn-sidebar-close')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  closeMobileMenu();
-});
-$('#sidebar-backdrop')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  closeMobileMenu();
-});
+window.toggleMobileMenu = toggleMobileMenu;
 
 
 // NAVEGACIÓN
