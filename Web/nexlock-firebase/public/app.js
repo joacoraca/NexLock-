@@ -185,11 +185,25 @@ $('#login-form').addEventListener('submit', async (e) => {
 });
 
 // Cerrar sesión
-$('#btn-logout')?.addEventListener('click', async () => {
-  await signOut(auth);
+async function doLogout() {
+  try {
+    setMenuOpen(false);
+    await signOut(auth);
+  } catch (err) {
+    console.error('Error al cerrar sesión:', err);
+    $('#login-screen').style.display = 'flex';
+    $('#app-screen').style.display   = 'none';
+  }
+}
+window.doLogout = doLogout;
+
+$('#btn-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  doLogout();
 });
-$('#btn-logout-mobile')?.addEventListener('click', async () => {
-  await signOut(auth);
+$('#btn-logout-mobile')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  doLogout();
 });
 
 
@@ -610,14 +624,39 @@ window.deleteUser = deleteUser;
 
 // MENÚ LATERAL RESPONSIVO (DRAWER EN CELULARES)
 function setMenuOpen(open) {
-  $('#sidebar')?.classList.toggle('open', open);
-  $('#sidebar-backdrop')?.classList.toggle('open', open);
-  document.body.classList.toggle('menu-open', open);
+  const sb = $('#sidebar');
+  const bd = $('#sidebar-backdrop');
+  if (sb) sb.classList.toggle('open', Boolean(open));
+  if (bd) bd.classList.toggle('open', Boolean(open));
+  document.body.classList.toggle('menu-open', Boolean(open));
 }
 
-$('#btn-menu-toggle')?.addEventListener('click', () => setMenuOpen(true));
-$('#btn-sidebar-close')?.addEventListener('click', () => setMenuOpen(false));
-$('#sidebar-backdrop')?.addEventListener('click', () => setMenuOpen(false));
+function toggleMobileMenu() {
+  const sb = $('#sidebar');
+  const isOpen = sb ? sb.classList.contains('open') : false;
+  setMenuOpen(!isOpen);
+}
+
+function closeMobileMenu() {
+  setMenuOpen(false);
+}
+
+window.setMenuOpen = setMenuOpen;
+window.toggleMobileMenu = toggleMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
+
+$('#btn-menu-toggle')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  toggleMobileMenu();
+});
+$('#btn-sidebar-close')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeMobileMenu();
+});
+$('#sidebar-backdrop')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeMobileMenu();
+});
 
 
 // NAVEGACIÓN
@@ -633,9 +672,11 @@ function switchView(view) {
   setMenuOpen(false); // Cierra el menú al cambiar de sección en móviles
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+window.switchView = switchView;
 
 $$('.nav-link').forEach(link => {
-  link.addEventListener('click', () => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
     switchView(link.dataset.view);
   });
 });
