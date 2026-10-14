@@ -608,6 +608,18 @@ async function deleteUser(id) {
 window.deleteUser = deleteUser;
 
 
+// MENÚ LATERAL RESPONSIVO (DRAWER EN CELULARES)
+function setMenuOpen(open) {
+  $('#sidebar')?.classList.toggle('open', open);
+  $('#sidebar-backdrop')?.classList.toggle('open', open);
+  document.body.classList.toggle('menu-open', open);
+}
+
+$('#btn-menu-toggle')?.addEventListener('click', () => setMenuOpen(true));
+$('#btn-sidebar-close')?.addEventListener('click', () => setMenuOpen(false));
+$('#sidebar-backdrop')?.addEventListener('click', () => setMenuOpen(false));
+
+
 // NAVEGACIÓN
 
 let activeFilter = 'all';
@@ -618,6 +630,7 @@ function switchView(view) {
   $$('.view').forEach(v => v.classList.remove('active'));
   $(`#view-${view}`)?.classList.add('active');
   if (view === 'logs') loadLogs(activeFilter);
+  setMenuOpen(false); // Cierra el menú al cambiar de sección en móviles
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
