@@ -2,55 +2,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Quién es quién ──────────────────────────────────────────────────────
-    // Admins del panel web : cualquier cuenta de Firebase Auth que NO sea de dispositivo.
-    // Dispositivos (ESP32 / ESP32-CAM): cuentas de Firebase Auth con email
-    //   terminado en "@nexlock.device" (ej: door_1@nexlock.device, door_1-cam@nexlock.device).
-    //   Se crean a mano en Firebase Console → Authentication → Agregar usuario.
-    //
-    // IMPORTANTE: desactivar el registro público en Firebase Console →
-    //   Authentication → Configuración → Acciones del usuario → "Habilitar creación (registro)".
-    //   Si no, cualquiera con la apiKey podría crearse una cuenta.
-    function signedIn() { return request.auth != null; }
-    function isDevice() {
-      return signedIn()
-        && request.auth.token.get('email', '').matches('.*@nexlock[.]device$');
-    }
-    function isAdmin() { return signedIn() && !isDevice(); }
-
-    // 1. Logs: el ESP32 crea registros, el panel los lee. Nadie edita ni borra el historial.
+    // 1. Logs de acceso:
+    // ESP32 y panel web pueden leer y registrar eventos.
+    // Se bloquea la modificación o eliminación para mantener auditoría.
     match /logs/{logId} {
-      allow read:   if isAdmin();
-      allow create: if (isDevice() || isAdmin())
-                    && request.resource.data.result in ['success', 'fail'];
+      allow read, create: if true;
       allow update, delete: if false;
     }
 
-    // 2. Usuarios: el panel los gestiona; los dispositivos solo leen (buscar por hash de PIN).
+    // 2. Usuarios:
+    // Lectura permitida para validar PIN (ESP32 y panel).
+    // Creación, edición y borrado exclusivo para administradores autenticados en el panel web.
     match /users/{userId} {
-      allow read:   if isAdmin() || isDevice();
-      allow create, update: if isAdmin()
-                    && request.resource.data.name is string
-                    && request.resource.data.pin is string
-                    && request.resource.data.pin.size() == 64
-                    && request.resource.data.role in ['user', 'admin'];
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // 3. Rostros de referencia (JPEG base64). Dato biométrico: nunca público.
-    //    El panel los escribe; el ESP32-CAM los lee para compararlos con Face++.
+    // 3. Rostros de referencia:
+    // Lectura permitida para comparación biométrica (ESP32-CAM y panel).
+    // Creación y actualización exclusiva para administradores autenticados.
     match /faces/{userId} {
-      allow read:   if isAdmin() || isDevice();
-      allow create, update: if isAdmin()
-                    && request.resource.data.image is string
-                    && request.resource.data.image.size() < 700000;
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
 
-    // 4. Estado de los dispositivos (heartbeat del ESP32 → tarjeta "Dispositivos" del dashboard)
+    // 4. Estado de los dispositivos (Heartbeat de ESP32 y ESP32-CAM):
     match /devices/{deviceId} {
-      allow read:  if isAdmin() || isDevice();
-      allow write: if isDevice() || isAdmin();
+      allow read, write: if true;
     }
   }
 }

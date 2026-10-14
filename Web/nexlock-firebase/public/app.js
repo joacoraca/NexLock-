@@ -81,8 +81,13 @@ function initials(name = '') {
 }
 
 function setConnected(ok) {
-  $('#status-dot').className = 'status-dot ' + (ok ? 'on' : 'off');
-  $('#status-text').textContent = ok ? 'Conectado' : 'Sin conexión';
+  const cls = 'status-dot ' + (ok ? 'on' : 'off');
+  const dot = $('#status-dot');
+  if (dot) dot.className = cls;
+  const mDot = $('#mobile-status-dot');
+  if (mDot) mDot.className = cls;
+  const txt = $('#status-text');
+  if (txt) txt.textContent = ok ? 'Conectado' : 'Sin conexión';
 }
 
 // Reloj 
@@ -180,7 +185,10 @@ $('#login-form').addEventListener('submit', async (e) => {
 });
 
 // Cerrar sesión
-$('#btn-logout').addEventListener('click', async () => {
+$('#btn-logout')?.addEventListener('click', async () => {
+  await signOut(auth);
+});
+$('#btn-logout-mobile')?.addEventListener('click', async () => {
   await signOut(auth);
 });
 
@@ -604,14 +612,18 @@ window.deleteUser = deleteUser;
 
 let activeFilter = 'all';
 
+function switchView(view) {
+  if (!view) return;
+  $$('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.view === view));
+  $$('.view').forEach(v => v.classList.remove('active'));
+  $(`#view-${view}`)?.classList.add('active');
+  if (view === 'logs') loadLogs(activeFilter);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 $$('.nav-link').forEach(link => {
   link.addEventListener('click', () => {
-    $$('.nav-link').forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-    const view = link.dataset.view;
-    $$('.view').forEach(v => v.classList.remove('active'));
-    $(`#view-${view}`).classList.add('active');
-    if (view === 'logs') loadLogs(activeFilter);
+    switchView(link.dataset.view);
   });
 });
 
