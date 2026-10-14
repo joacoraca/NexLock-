@@ -167,7 +167,7 @@ void loop() {
 
   } else if (key == '#') {
     if (pinIngresado.length() < 4) {
-      Serial.println("[Teclado] PIN muy corto (minimo 4 digitos).");
+      Serial.println("\n[Teclado] PIN muy corto (minimo 4 digitos).");
       tonoError();
       pinIngresado = "";
       return;
@@ -223,7 +223,7 @@ void loop() {
 
   } else if (pinIngresado.length() < 8 && (key >= '0' && key <= '9')) {
     pinIngresado += key;
-    Serial.print("*");
+    Serial.print(key);
   }
 }
 
