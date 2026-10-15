@@ -81,14 +81,44 @@ function initials(name = '') {
 }
 
 function setConnected(ok) {
-  $('#status-dot').className = 'status-dot ' + (ok ? 'on' : 'off');
-  $('#status-text').textContent = ok ? 'Conectado' : 'Sin conexión';
+  const cls = 'status-dot ' + (ok ? 'on' : 'off');
+  const dot = $('#status-dot');
+  if (dot) dot.className = cls;
+  const mDot = $('#mobile-status-dot');
+  if (mDot) mDot.className = cls;
+  const txt = $('#status-text');
+  if (txt) txt.textContent = ok ? 'Conectado' : 'Sin conexión';
 }
 
-// Reloj 
-setInterval(() => {
-  $('#clock').textContent = new Date().toLocaleString('es-AR', { hour12: false });
-}, 1000);
+// Reloj & Fecha Digital (Desktop Estilo Imagen 1 y Mobile)
+function updateClocks() {
+  const now = new Date();
+  const timeEs = now.toLocaleTimeString('es-AR', { hour12: false });
+  const clockEl = $('#clock');
+  if (clockEl) clockEl.textContent = timeEs;
+
+  // Reloj Digital Gigante Desktop (Imagen 1)
+  const dClock = $('#digital-clock');
+  if (dClock) {
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(now.getMinutes()).padStart(2, '0');
+    dClock.innerHTML = `${hoursStr}:${minutesStr} <span class="clock-ampm">${ampm}</span>`;
+  }
+
+  // Fecha Digital Desktop
+  const dDate = $('#digital-date');
+  if (dDate) {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateStr = now.toLocaleDateString('es-AR', options);
+    dDate.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+  }
+}
+setInterval(updateClocks, 1000);
+updateClocks();
 
 // Listeners de Firestore activos (se cancelan al cerrar sesión)
 let listeners = [];
@@ -145,6 +175,12 @@ onAuthStateChanged(auth, user => {
     $('#login-screen').style.display  = 'none';
     $('#app-screen').style.display    = 'flex';
     $('#user-email').textContent      = user.email;
+    const greetingEl = $('#greeting-name');
+    if (greetingEl) {
+      const emailName = user.email ? user.email.split('@')[0] : 'Admin';
+      const cleanName = emailName.replace(/[._-]/g, ' ');
+      greetingEl.textContent = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
     initDashboard();
     initDevices();
     initUsers();
@@ -180,9 +216,18 @@ $('#login-form').addEventListener('submit', async (e) => {
 });
 
 // Cerrar sesión
-$('#btn-logout').addEventListener('click', async () => {
-  await signOut(auth);
-});
+async function doLogout() {
+  try {
+    if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
+    await signOut(auth);
+  } catch (err) {
+    console.error('Error al cerrar sesión:', err);
+    $('#login-screen').style.display = 'flex';
+    $('#app-screen').style.display   = 'none';
+  }
+}
+window.doLogout = doLogout;
+
 
 
 // VERIFICACIÓN (PIN + ROSTRO) — cómo se muestra cada log
@@ -229,10 +274,52 @@ async function loadStats() {
       getDocs(query(logsCol, where('result', '==', 'fail'))),
     ]);
     const total = all.size;
+    const okCount = ok.size;
+    const failCount = fail.size;
+    const rateNum = total > 0 ? Math.round((okCount / total) * 100) : 100;
+    const rateStr = total > 0 ? `${rateNum}%` : '—';
+
     $('#s-total').textContent = total;
-    $('#s-ok').textContent    = ok.size;
-    $('#s-fail').textContent  = fail.size;
-    $('#s-rate').textContent  = total > 0 ? Math.round((ok.size / total) * 100) + '%' : '—';
+    $('#s-ok').textContent    = okCount;
+    $('#s-fail').textContent  = failCount;
+    const sRate = $('#s-rate');
+    if (sRate) sRate.textContent = rateStr;
+
+    // Actualizar Widget Circular PC (Focus Timer con Anillo Neón Azul)
+    const gaugeRate = $('#gauge-rate-val');
+    if (gaugeRate) gaugeRate.textContent = `${rateNum}%`;
+
+    const gaugeCircle = $('#gauge-circle-progress');
+    if (gaugeCircle) {
+      const radius = 54;
+      const circumference = 2 * Math.PI * radius; // ~339.29
+      const offset = circumference - (rateNum / 100) * circumference;
+      gaugeCircle.style.strokeDasharray = `${circumference}`;
+      gaugeCircle.style.strokeDashoffset = `${offset}`;
+    }
+
+    // Actualizar Widgets Móvil (Tarjeta Hero y Donut Estilo Imagen 2)
+    const mHero = $('#m-hero-total');
+    if (mHero) mHero.textContent = total;
+
+    const mDonut = $('#m-donut-val');
+    if (mDonut) mDonut.textContent = `${rateNum}%`;
+
+    const mDonutCircle = $('#m-donut-circle-progress');
+    if (mDonutCircle) {
+      const radius = 48;
+      const circumference = 2 * Math.PI * radius; // ~301.59
+      const offset = circumference - (rateNum / 100) * circumference;
+      mDonutCircle.style.strokeDasharray = `${circumference}`;
+      mDonutCircle.style.strokeDashoffset = `${offset}`;
+    }
+
+    const mOk = $('#m-ok-val');
+    if (mOk) mOk.textContent = okCount;
+
+    const mFail = $('#m-fail-val');
+    if (mFail) mFail.textContent = failCount;
+
   } catch (e) { console.error('Stats error:', e); }
 }
 
@@ -352,7 +439,7 @@ function loadLogs(filter = 'all') {
   unsubLogs = onSnapshot(q, snap => {
     const tbody = $('#logs-body');
     if (snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = snap.docs.map(d => {
@@ -365,6 +452,11 @@ function loadLogs(filter = 'all') {
           <td class="user-cell">${log.userName ? esc(log.userName) : '<span style="color:var(--text-3)">Desconocido</span>'}</td>
           <td><div class="chips">${verificationChips(log)}</div></td>
           <td><span class="badge ${isOk ? 'ok' : 'fail'}">${isOk ? '✓ Permitido' : '✗ Denegado'}</span></td>
+          <td style="text-align: center;">
+            <button type="button" class="btn-del-log" data-log-id="${d.id}" title="Eliminar este intento">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </td>
         </tr>`;
     }).join('');
   }, err => console.error('Logs error:', err));
@@ -604,16 +696,16 @@ window.deleteUser = deleteUser;
 
 let activeFilter = 'all';
 
-$$('.nav-link').forEach(link => {
-  link.addEventListener('click', () => {
-    $$('.nav-link').forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-    const view = link.dataset.view;
-    $$('.view').forEach(v => v.classList.remove('active'));
-    $(`#view-${view}`).classList.add('active');
-    if (view === 'logs') loadLogs(activeFilter);
-  });
-});
+function switchView(view) {
+  if (!view) return;
+  $$('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.view === view));
+  $$('.view').forEach(v => v.classList.remove('active'));
+  $(`#view-${view}`)?.classList.add('active');
+  if (view === 'logs') loadLogs(activeFilter);
+  if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.switchView = switchView;
 
 $$('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -623,3 +715,80 @@ $$('.tab').forEach(btn => {
     loadLogs(activeFilter);
   });
 });
+
+// ACCIONES SOBRE EL HISTORIAL
+async function deleteLog(id) {
+  if (!confirm('¿Eliminar este registro de intento?')) return;
+  try {
+    await deleteDoc(doc(db, 'logs', id));
+    await loadStats();
+  } catch (err) {
+    console.error('Error al borrar intento:', err);
+    alert(err.code === 'permission-denied'
+      ? 'Sin permisos para borrar registros. Verificá las reglas de Firestore.'
+      : 'Error al borrar el registro.');
+  }
+}
+window.deleteLog = deleteLog;
+
+async function clearAllLogs() {
+  if (!confirm('¿Estás seguro de que deseas eliminar todo el historial de intentos? Esta acción no se puede deshacer.')) {
+    return;
+  }
+
+  const btn = $('#btn-clear-logs');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span style="font-size:12px;">Borrando…</span>`;
+  }
+
+  try {
+    const snap = await getDocs(logsCol);
+    if (snap.empty) {
+      alert('El historial ya está vacío.');
+      return;
+    }
+
+    const batches = [];
+    let batch = writeBatch(db);
+    let count = 0;
+
+    snap.docs.forEach(docSnap => {
+      batch.delete(docSnap.ref);
+      count++;
+      if (count === 400) {
+        batches.push(batch.commit());
+        batch = writeBatch(db);
+        count = 0;
+      }
+    });
+
+    if (count > 0) {
+      batches.push(batch.commit());
+    }
+
+    await Promise.all(batches);
+    await loadStats();
+  } catch (err) {
+    console.error('Error al vaciar historial:', err);
+    alert(err.code === 'permission-denied'
+      ? 'Sin permisos para borrar el historial. Verificá las reglas de Firestore.'
+      : 'Error al borrar el historial de intentos.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+window.clearAllLogs = clearAllLogs;
+
+$('#logs-body')?.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-del-log');
+  if (btn && btn.dataset.logId) {
+    deleteLog(btn.dataset.logId);
+  }
+});
+
+$('#btn-clear-logs')?.addEventListener('click', clearAllLogs);
