@@ -90,10 +90,35 @@ function setConnected(ok) {
   if (txt) txt.textContent = ok ? 'Conectado' : 'Sin conexión';
 }
 
-// Reloj 
-setInterval(() => {
-  $('#clock').textContent = new Date().toLocaleString('es-AR', { hour12: false });
-}, 1000);
+// Reloj & Fecha Digital (Desktop Estilo Imagen 1 y Mobile)
+function updateClocks() {
+  const now = new Date();
+  const timeEs = now.toLocaleTimeString('es-AR', { hour12: false });
+  const clockEl = $('#clock');
+  if (clockEl) clockEl.textContent = timeEs;
+
+  // Reloj Digital Gigante Desktop (Imagen 1)
+  const dClock = $('#digital-clock');
+  if (dClock) {
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(now.getMinutes()).padStart(2, '0');
+    dClock.innerHTML = `${hoursStr}:${minutesStr} <span class="clock-ampm">${ampm}</span>`;
+  }
+
+  // Fecha Digital Desktop
+  const dDate = $('#digital-date');
+  if (dDate) {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateStr = now.toLocaleDateString('es-AR', options);
+    dDate.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+  }
+}
+setInterval(updateClocks, 1000);
+updateClocks();
 
 // Listeners de Firestore activos (se cancelan al cerrar sesión)
 let listeners = [];
@@ -150,6 +175,12 @@ onAuthStateChanged(auth, user => {
     $('#login-screen').style.display  = 'none';
     $('#app-screen').style.display    = 'flex';
     $('#user-email').textContent      = user.email;
+    const greetingEl = $('#greeting-name');
+    if (greetingEl) {
+      const emailName = user.email ? user.email.split('@')[0] : 'Admin';
+      const cleanName = emailName.replace(/[._-]/g, ' ');
+      greetingEl.textContent = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
     initDashboard();
     initDevices();
     initUsers();
@@ -243,10 +274,52 @@ async function loadStats() {
       getDocs(query(logsCol, where('result', '==', 'fail'))),
     ]);
     const total = all.size;
+    const okCount = ok.size;
+    const failCount = fail.size;
+    const rateNum = total > 0 ? Math.round((okCount / total) * 100) : 100;
+    const rateStr = total > 0 ? `${rateNum}%` : '—';
+
     $('#s-total').textContent = total;
-    $('#s-ok').textContent    = ok.size;
-    $('#s-fail').textContent  = fail.size;
-    $('#s-rate').textContent  = total > 0 ? Math.round((ok.size / total) * 100) + '%' : '—';
+    $('#s-ok').textContent    = okCount;
+    $('#s-fail').textContent  = failCount;
+    const sRate = $('#s-rate');
+    if (sRate) sRate.textContent = rateStr;
+
+    // Actualizar Widget Circular PC (Focus Timer con Anillo Neón Azul)
+    const gaugeRate = $('#gauge-rate-val');
+    if (gaugeRate) gaugeRate.textContent = `${rateNum}%`;
+
+    const gaugeCircle = $('#gauge-circle-progress');
+    if (gaugeCircle) {
+      const radius = 54;
+      const circumference = 2 * Math.PI * radius; // ~339.29
+      const offset = circumference - (rateNum / 100) * circumference;
+      gaugeCircle.style.strokeDasharray = `${circumference}`;
+      gaugeCircle.style.strokeDashoffset = `${offset}`;
+    }
+
+    // Actualizar Widgets Móvil (Tarjeta Hero y Donut Estilo Imagen 2)
+    const mHero = $('#m-hero-total');
+    if (mHero) mHero.textContent = total;
+
+    const mDonut = $('#m-donut-val');
+    if (mDonut) mDonut.textContent = `${rateNum}%`;
+
+    const mDonutCircle = $('#m-donut-circle-progress');
+    if (mDonutCircle) {
+      const radius = 48;
+      const circumference = 2 * Math.PI * radius; // ~301.59
+      const offset = circumference - (rateNum / 100) * circumference;
+      mDonutCircle.style.strokeDasharray = `${circumference}`;
+      mDonutCircle.style.strokeDashoffset = `${offset}`;
+    }
+
+    const mOk = $('#m-ok-val');
+    if (mOk) mOk.textContent = okCount;
+
+    const mFail = $('#m-fail-val');
+    if (mFail) mFail.textContent = failCount;
+
   } catch (e) { console.error('Stats error:', e); }
 }
 
