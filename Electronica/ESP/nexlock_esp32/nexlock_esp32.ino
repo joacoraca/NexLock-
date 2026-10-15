@@ -120,6 +120,14 @@ void setup() {
   conectarWiFi();
   firebaseLogin();
 
+  // Comprobar estado de la cámara
+  pingCamara();
+  if (camOnline) {
+    Serial.println("[ESP32-CAM] Camara en linea! Firmware: " + camFwVersion);
+  } else {
+    Serial.println("[ESP32-CAM] Advertencia: La camara aun no responde (verificar alimentacion y cableado RX:19 <-> TX, TX:5 <-> RX, GND <-> GND)");
+  }
+
   beepCorto(2400, 150);
   Serial.println("\n=============================================");
   Serial.println("  NexLock Listo: Ingresa PIN y presiona #");
@@ -140,10 +148,17 @@ void loop() {
   while (CamSerial.available()) {
     String line = CamSerial.readStringUntil('\n');
     line.trim();
-    if (line.startsWith("NL,READY,")) {
-      camFwVersion = line.substring(9);
-      camOnline = true;
-      Serial.println("[ESP32-CAM] Detectado y listo! Firmware: " + camFwVersion);
+    if (line.length() > 0) {
+      if (line.startsWith("NL,READY,")) {
+        camFwVersion = line.substring(9);
+        camOnline = true;
+        Serial.println("[ESP32-CAM] Detectado y listo! Firmware: " + camFwVersion);
+      } else if (line.startsWith("NL,PONG,")) {
+        camFwVersion = line.substring(8);
+        camOnline = true;
+      } else {
+        Serial.println("[ESP32-CAM] " + line);
+      }
     }
   }
 
@@ -270,24 +285,28 @@ FaceVerdict solicitarVerificacionFacial(const String& userId, uint32_t timeoutMs
       if (c == '\r') continue;
       if (c == '\n') {
         buffer.trim();
-        if (buffer.startsWith("NL,BUSY,")) {
-          Serial.println("[ESP32-CAM] Procesando imagen y consultando Face++...");
-        } else if (buffer.startsWith("NL,RESULT,")) {
-          // Formato esperado: NL,RESULT,<userId>,<result>,<confidence>
-          int idx1 = buffer.indexOf(',', 10);
-          int idx2 = buffer.indexOf(',', idx1 + 1);
-          if (idx1 > 0 && idx2 > 0) {
-            String resUserId = buffer.substring(10, idx1);
-            String resVerdict = buffer.substring(idx1 + 1, idx2);
-            float  resConf   = buffer.substring(idx2 + 1).toFloat();
-            if (resUserId == userId) {
-              return { resVerdict, resConf };
+        if (buffer.length() > 0) {
+          if (buffer.startsWith("NL,BUSY,")) {
+            Serial.println("[ESP32-CAM] Procesando imagen y consultando Face++...");
+          } else if (buffer.startsWith("NL,RESULT,")) {
+            // Formato esperado: NL,RESULT,<userId>,<result>,<confidence>
+            int idx1 = buffer.indexOf(',', 10);
+            int idx2 = buffer.indexOf(',', idx1 + 1);
+            if (idx1 > 0 && idx2 > 0) {
+              String resUserId = buffer.substring(10, idx1);
+              String resVerdict = buffer.substring(idx1 + 1, idx2);
+              float  resConf   = buffer.substring(idx2 + 1).toFloat();
+              if (resUserId == userId) {
+                return { resVerdict, resConf };
+              }
             }
+          } else {
+            Serial.println("[ESP32-CAM] " + buffer);
           }
         }
         buffer = "";
       } else {
-        if (buffer.length() < 128) buffer += c;
+        if (buffer.length() < 256) buffer += c;
       }
     }
     delay(5);
@@ -388,6 +407,8 @@ bool firebaseLogin() {
   int code = http.POST(reqBody);
   if (code != 200) {
     Serial.println("[Auth] Error autenticando dispositivo en Firebase: " + String(code));
+    String resErr = http.getString();
+    Serial.println("[Auth] Detalle del servidor: " + resErr);
     http.end();
     return false;
   }

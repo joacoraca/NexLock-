@@ -9,6 +9,8 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
 #if __has_include("secrets.h")
@@ -21,11 +23,20 @@
   #define WIFI_PASSWORD       "Ateyalfa2026"
   #define FIREBASE_PROJECT_ID "nexlock-24aed"
   #define FIREBASE_API_KEY    "AIzaSyBLiRX-M-1dqJ7VlJ8LlGutS9fjVlr8H3g"
-  #define DEVICE_AUTH_EMAIL   "door_1-cam@nexlock.device"
-  #define DEVICE_AUTH_PASS    "NexLockDevice2026!"
+  #define DEVICE_CAM_AUTH_EMAIL "door_1-cam@nexlock.device"
+  #define DEVICE_CAM_AUTH_PASS  "NexLockDevice2026!"
   #define FACEPP_API_KEY      "b4XLQKMe-WwhS2qiQtNTlNn0EehW3nrc"
   #define FACEPP_API_SECRET   "7m3JgGTxeG5-7qjdmo4We9s6_19AZnsg"
   #define FACEPP_SERVER       "https://api-us.faceplusplus.com"
+#endif
+
+// Definición de credenciales de la cámara para Auth
+#if defined(DEVICE_CAM_AUTH_EMAIL)
+  #define CAM_AUTH_EMAIL DEVICE_CAM_AUTH_EMAIL
+  #define CAM_AUTH_PASS  DEVICE_CAM_AUTH_PASS
+#else
+  #define CAM_AUTH_EMAIL "door_1-cam@nexlock.device"
+  #define CAM_AUTH_PASS  "NexLockDevice2026!"
 #endif
 
 // ── PINES DE CÁMARA (AI-Thinker ESP32-CAM) ──────────────────────────────────
@@ -71,24 +82,47 @@ String descargarRostroReferencia(const String& userId);
 // SETUP
 // ============================================================================
 void setup() {
-  // ATENCIÓN: El puerto Serial (GPIO 1 TX, GPIO 3 RX) es el enlace con el ESP32 central.
-  // NO escribir prints libres de debug porque el ESP32 los leería.
-  // Solo se envían líneas formateadas con el protocolo: NL,...
+  // Desactivar detector de brownout para evitar reinicios por picos de consumo en cables jumper
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+  // Puerto Serie (GPIO 1 TX, GPIO 3 RX): enlace bidireccional con el ESP32 central
   Serial.begin(115200);
 
   pinMode(PIN_FLASH_LED, OUTPUT);
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_FLASH_LED, LOW);
-  digitalWrite(PIN_STATUS_LED, HIGH); // Apagado
+  digitalWrite(PIN_STATUS_LED, HIGH); // Apagado (activo en LOW)
 
+  // Feedback visual inicial: 2 destellos cortos del LED rojo trasero
+  digitalWrite(PIN_STATUS_LED, LOW); delay(80); digitalWrite(PIN_STATUS_LED, HIGH); delay(80);
+  digitalWrite(PIN_STATUS_LED, LOW); delay(80); digitalWrite(PIN_STATUS_LED, HIGH);
+
+  Serial.println("[CAM] Iniciando hardware de camara OV2640...");
   cameraInitialized = iniciarCamara();
+  if (cameraInitialized) {
+    Serial.println("[CAM] Sensor OV2640 inicializado con exito ✓");
+  } else {
+    Serial.println("[CAM] ERROR CRITICO: Fallo inicializacion del sensor de camara!");
+  }
 
+  Serial.println("[CAM] Conectando a red WiFi...");
   conectarWiFi();
-  firebaseLogin();
 
-  // Avisar al ESP32 que la cámara está viva y lista
+  Serial.println("[CAM] Autenticando en Firebase...");
+  if (firebaseLogin()) {
+    Serial.println("[CAM] Autenticado en Firebase exitosamente ✓");
+  } else {
+    Serial.println("[CAM] Advertencia: Error en login de Firebase Auth");
+  }
+
+  // Avisar al ESP32 central que la cámara está viva y lista
   Serial.print("NL,READY,");
   Serial.println(FW_VERSION);
+
+  // Destello largo: completamente listo para operar
+  digitalWrite(PIN_STATUS_LED, LOW);
+  delay(400);
+  digitalWrite(PIN_STATUS_LED, HIGH);
 }
 
 // ============================================================================
@@ -126,7 +160,7 @@ void procesarComandoUART(const String& cmd) {
     String userId = cmd.substring(10);
     userId.trim();
     if (userId.length() > 0) {
-      // Confirmar recepción para que el ESP32 sepa que se está procesando
+      // Confirmar recepción al ESP32 inmediatamente
       Serial.print("NL,BUSY,");
       Serial.println(userId);
 
@@ -140,43 +174,44 @@ void procesarComandoUART(const String& cmd) {
 // ============================================================================
 void verificarUsuarioContraFacePP(const String& userId) {
   if (!cameraInitialized) {
+    Serial.println("[CAM] Error: Camara no inicializada.");
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
   }
 
-  // Titilar LED de estado
+  // Encender LED trasero de estado mientras dure el proceso
   digitalWrite(PIN_STATUS_LED, LOW);
 
   // 1. Descargar foto de referencia (JPEG base64) desde Firestore
+  Serial.println("[CAM] Descargando rostro de referencia desde Firestore...");
   String refBase64 = descargarRostroReferencia(userId);
   if (refBase64.length() == 0) {
+    Serial.println("[CAM] Error: No se encontro rostro de referencia para este usuario");
     digitalWrite(PIN_STATUS_LED, HIGH);
     Serial.printf("NL,RESULT,%s,not_enrolled,-1.0\n", userId.c_str());
     return;
   }
+  Serial.printf("[CAM] Rostro de referencia obtenido (%d bytes base64) ✓\n", refBase64.length());
 
   // 2. Capturar frame actual de la cámara
+  Serial.println("[CAM] Capturando imagen del usuario...");
   // Descartar frame viejo del buffer interno
   camera_fb_t* fbOld = esp_camera_fb_get();
   if (fbOld) esp_camera_fb_return(fbOld);
 
-  // Opcional: prender flash suavemente si se desea iluminar el rostro
-  // digitalWrite(PIN_FLASH_LED, HIGH);
-  delay(100);
+  delay(60);
   camera_fb_t* fb = esp_camera_fb_get();
-  // digitalWrite(PIN_FLASH_LED, LOW);
 
   if (!fb) {
+    Serial.println("[CAM] Error: Fallo al capturar frame de camara");
     digitalWrite(PIN_STATUS_LED, HIGH);
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
   }
+  Serial.printf("[CAM] Frame capturado con exito (%d bytes JPEG) ✓\n", fb->len);
 
   // 3. Preparar petición multipart/form-data a Face++ Compare
-  // Enviamos:
-  //   - api_key, api_secret
-  //   - image_base64_2: rostro de referencia registrado en la web
-  //   - image_file1: foto recién capturada por la cámara (binario directo para máxima velocidad)
+  Serial.println("[CAM] Preparando paquete Face++ Compare...");
   String boundary = "----NexLock" + String(esp_random(), HEX);
 
   String head = "--" + boundary + "\r\n"
@@ -194,9 +229,13 @@ void verificarUsuarioContraFacePP(const String& userId) {
 
   size_t totalLen = head.length() + refBase64.length() + mid.length() + fb->len + tail.length();
 
-  // Asignar memoria en PSRAM para armar el cuerpo multipart
+  // Asignar memoria en PSRAM (o RAM interna si PSRAM no está disponible)
   uint8_t* reqBody = (uint8_t*)ps_malloc(totalLen);
   if (!reqBody) {
+    reqBody = (uint8_t*)malloc(totalLen);
+  }
+  if (!reqBody) {
+    Serial.println("[CAM] Error: Memoria insuficiente para armar multipart");
     esp_camera_fb_return(fb);
     digitalWrite(PIN_STATUS_LED, HIGH);
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
@@ -214,6 +253,7 @@ void verificarUsuarioContraFacePP(const String& userId) {
   esp_camera_fb_return(fb);
 
   // 4. Enviar request a Face++
+  Serial.println("[CAM] Consultando API Face++ Compare...");
   WiFiClientSecure client;
   client.setInsecure();
 
@@ -226,9 +266,12 @@ void verificarUsuarioContraFacePP(const String& userId) {
   int httpCode = http.POST(reqBody, totalLen);
   free(reqBody);
 
-  digitalWrite(PIN_STATUS_LED, HIGH);
+  digitalWrite(PIN_STATUS_LED, HIGH); // Apagar LED
 
   if (httpCode != 200) {
+    Serial.printf("[CAM] Error Face++ HTTP %d\n", httpCode);
+    String errDetail = http.getString();
+    Serial.println("[CAM] Detalle: " + errDetail);
     http.end();
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
@@ -241,17 +284,21 @@ void verificarUsuarioContraFacePP(const String& userId) {
   DynamicJsonDocument doc(4096);
   DeserializationError err = deserializeJson(doc, response);
   if (err) {
+    Serial.println("[CAM] Error deserializando JSON de Face++");
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
   }
 
   if (doc.containsKey("error_message")) {
+    String errMsg = doc["error_message"].as<String>();
+    Serial.println("[CAM] Face++ respondio con error: " + errMsg);
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
   }
 
-  // Si no se detectó rostro en la foto actual o en la de referencia:
+  // Si no se detectó rostro en alguna de las dos imágenes:
   if (!doc.containsKey("confidence")) {
+    Serial.println("[CAM] No se detecto un rostro claro frente a la camara");
     Serial.printf("NL,RESULT,%s,no_face,-1.0\n", userId.c_str());
     return;
   }
@@ -259,6 +306,8 @@ void verificarUsuarioContraFacePP(const String& userId) {
   float confidence = doc["confidence"].as<float>();
   // Umbral de seguridad 1e-4 (falso positivo < 0.01%)
   float threshold = doc["thresholds"]["1e-4"] | 65.0f;
+
+  Serial.printf("[CAM] Face++: Confianza = %.1f%% (Umbral minimo = %.1f%%)\n", confidence, threshold);
 
   bool coincide = (confidence >= threshold);
   String veredicto = coincide ? "match" : "no_match";
@@ -295,14 +344,21 @@ String descargarRostroReferencia(const String& userId) {
   String res = http.getString();
   http.end();
 
-  // Extracción rápida del base64 sin sobrecargar memoria
-  int keyIdx = res.indexOf("\"stringValue\": \"");
+  // Extracción robusta de stringValue sin importar espacios
+  int keyIdx = res.indexOf("\"stringValue\"");
   if (keyIdx < 0) return "";
-  keyIdx += 16;
-  int endIdx = res.indexOf('"', keyIdx);
-  if (endIdx < 0) return "";
 
-  return res.substring(keyIdx, endIdx);
+  int colonIdx = res.indexOf(':', keyIdx + 13);
+  if (colonIdx < 0) return "";
+
+  int startQuote = res.indexOf('"', colonIdx + 1);
+  if (startQuote < 0) return "";
+  startQuote++; // Posición inicial del base64
+
+  int endQuote = res.indexOf('"', startQuote);
+  if (endQuote < 0) return "";
+
+  return res.substring(startQuote, endQuote);
 }
 
 // ============================================================================
@@ -351,12 +407,21 @@ bool iniciarCamara() {
 // ============================================================================
 void conectarWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
+  Serial.print("[CAM] Conectando a red: ");
+  Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int intentos = 0;
-  while (WiFi.status() != WL_CONNECTED && intentos < 25) {
+  while (WiFi.status() != WL_CONNECTED && intentos < 30) {
     delay(400);
     intentos++;
+    Serial.print(".");
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[CAM] WiFi Conectado! IP: " + WiFi.localIP().toString());
+  } else {
+    Serial.println("\n[CAM] Error de conexion WiFi!");
   }
 }
 
@@ -374,8 +439,8 @@ bool firebaseLogin() {
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<256> reqDoc;
-  reqDoc["email"] = DEVICE_AUTH_EMAIL;
-  reqDoc["password"] = DEVICE_AUTH_PASS;
+  reqDoc["email"] = CAM_AUTH_EMAIL;
+  reqDoc["password"] = CAM_AUTH_PASS;
   reqDoc["returnSecureToken"] = true;
 
   String reqBody;
