@@ -4,10 +4,12 @@ service cloud.firestore {
 
     // 1. Logs de acceso:
     // ESP32 y panel web pueden leer y registrar eventos.
-    // Se bloquea la modificación o eliminación para mantener auditoría.
+    // Eliminación permitida para administradores autenticados desde el panel web.
+    // Modificación bloqueada para preservar integridad.
     match /logs/{logId} {
       allow read, create: if true;
-      allow update, delete: if false;
+      allow delete: if request.auth != null;
+      allow update: if false;
     }
 
     // 2. Usuarios:

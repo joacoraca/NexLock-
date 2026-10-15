@@ -366,7 +366,7 @@ function loadLogs(filter = 'all') {
   unsubLogs = onSnapshot(q, snap => {
     const tbody = $('#logs-body');
     if (snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = snap.docs.map(d => {
@@ -379,6 +379,11 @@ function loadLogs(filter = 'all') {
           <td class="user-cell">${log.userName ? esc(log.userName) : '<span style="color:var(--text-3)">Desconocido</span>'}</td>
           <td><div class="chips">${verificationChips(log)}</div></td>
           <td><span class="badge ${isOk ? 'ok' : 'fail'}">${isOk ? '✓ Permitido' : '✗ Denegado'}</span></td>
+          <td style="text-align: center;">
+            <button type="button" class="btn-del-log" data-log-id="${d.id}" title="Eliminar este intento">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </td>
         </tr>`;
     }).join('');
   }, err => console.error('Logs error:', err));
@@ -637,3 +642,80 @@ $$('.tab').forEach(btn => {
     loadLogs(activeFilter);
   });
 });
+
+// ACCIONES SOBRE EL HISTORIAL
+async function deleteLog(id) {
+  if (!confirm('¿Eliminar este registro de intento?')) return;
+  try {
+    await deleteDoc(doc(db, 'logs', id));
+    await loadStats();
+  } catch (err) {
+    console.error('Error al borrar intento:', err);
+    alert(err.code === 'permission-denied'
+      ? 'Sin permisos para borrar registros. Verificá las reglas de Firestore.'
+      : 'Error al borrar el registro.');
+  }
+}
+window.deleteLog = deleteLog;
+
+async function clearAllLogs() {
+  if (!confirm('¿Estás seguro de que deseas eliminar todo el historial de intentos? Esta acción no se puede deshacer.')) {
+    return;
+  }
+
+  const btn = $('#btn-clear-logs');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span style="font-size:12px;">Borrando…</span>`;
+  }
+
+  try {
+    const snap = await getDocs(logsCol);
+    if (snap.empty) {
+      alert('El historial ya está vacío.');
+      return;
+    }
+
+    const batches = [];
+    let batch = writeBatch(db);
+    let count = 0;
+
+    snap.docs.forEach(docSnap => {
+      batch.delete(docSnap.ref);
+      count++;
+      if (count === 400) {
+        batches.push(batch.commit());
+        batch = writeBatch(db);
+        count = 0;
+      }
+    });
+
+    if (count > 0) {
+      batches.push(batch.commit());
+    }
+
+    await Promise.all(batches);
+    await loadStats();
+  } catch (err) {
+    console.error('Error al vaciar historial:', err);
+    alert(err.code === 'permission-denied'
+      ? 'Sin permisos para borrar el historial. Verificá las reglas de Firestore.'
+      : 'Error al borrar el historial de intentos.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+window.clearAllLogs = clearAllLogs;
+
+$('#logs-body')?.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-del-log');
+  if (btn && btn.dataset.logId) {
+    deleteLog(btn.dataset.logId);
+  }
+});
+
+$('#btn-clear-logs')?.addEventListener('click', clearAllLogs);

@@ -834,6 +834,49 @@ nav {
 }
 .btn-del:hover { background: var(--red-bg); }
 
+.logs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#btn-clear-logs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  height: 36px;
+}
+
+#btn-clear-logs:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-del-log {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+}
+
+.btn-del-log:hover {
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+.btn-del-log svg {
+  pointer-events: none;
+}
+
 /* EMPTY STATE */
 
 .empty-state {
