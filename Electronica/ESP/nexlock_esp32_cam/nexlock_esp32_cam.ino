@@ -409,6 +409,11 @@ void conectarWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
   Serial.print("[CAM] Conectando a red: ");
   Serial.println(WIFI_SSID);
+
+  // Modo estacion y potencia RF moderada (11dBm) para evitar caidas de tension en cables
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_11dBm);
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int intentos = 0;
