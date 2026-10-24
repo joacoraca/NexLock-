@@ -11,7 +11,7 @@
 #include <Keypad.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_SH110X.h>
 #include "mbedtls/sha256.h"
 
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
@@ -45,13 +45,13 @@ byte rowPins[ROWS] = {18, 33, 25, 26};
 byte colPins[COLS] = {27, 14, 13, 23};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
-// Pantalla OLED I2C (SSD1306 128x64)
+// Pantalla OLED 1.30" IIC V2.2 (Controlador SH1106 128x64)
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 #define OLED_SDA 21
 #define OLED_SCL 22
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 bool oledOk = false;
 
 // Indicadores y actuadores
@@ -134,21 +134,22 @@ void setup() {
   digitalWrite(PIN_MOTOR_IN1, LOW);
   digitalWrite(PIN_MOTOR_IN2, LOW);
 
-  // Inicializar Pantalla OLED I2C (SSD1306 128x64 en SDA:21, SCL:22)
+  // Inicializar Pantalla OLED 1.30" (Controlador SH1106 en SDA:21, SCL:22)
+  delay(250); // Tiempo para estabilizar alimentación del módulo OLED
   Wire.begin(OLED_SDA, OLED_SCL);
-  if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  if (display.begin(0x3C, true)) {
     oledOk = true;
-    Serial.println("[OLED] Pantalla SSD1306 detectada en direccion 0x3C");
-  } else if (display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
+    Serial.println("[OLED] Pantalla SH1106 1.3\" detectada en direccion 0x3C");
+  } else if (display.begin(0x3D, true)) {
     oledOk = true;
-    Serial.println("[OLED] Pantalla SSD1306 detectada en direccion 0x3D");
+    Serial.println("[OLED] Pantalla SH1106 1.3\" detectada en direccion 0x3D");
   } else {
-    Serial.println("[OLED] Advertencia: No se detecto pantalla SSD1306 en 0x3C ni 0x3D.");
+    Serial.println("[OLED] Advertencia: No se detecto pantalla SH1106 en 0x3C ni 0x3D.");
   }
 
   if (oledOk) {
     display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE);
+    display.setTextColor(SH110X_WHITE);
     oledMostrarInicio();
   }
 
@@ -693,18 +694,18 @@ void enviarHeartbeat() {
 }
 
 // ============================================================================
-// FUNCIONES DE CONTROL DE PANTALLA OLED (SSD1306 128x64)
+// FUNCIONES DE CONTROL DE PANTALLA OLED 1.3" (SH1106 128x64)
 // ============================================================================
 
 void oledHeader(const char* title) {
   if (!oledOk) return;
   display.clearDisplay();
-  display.fillRect(0, 0, SCREEN_WIDTH, 12, SSD1306_WHITE);
-  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.fillRect(0, 0, SCREEN_WIDTH, 12, SH110X_WHITE);
+  display.setTextColor(SH110X_BLACK, SH110X_WHITE);
   display.setTextSize(1);
   display.setCursor(4, 2);
   display.print(title);
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(SH110X_WHITE);
 }
 
 void oledMostrarInicio() {
@@ -781,12 +782,12 @@ void oledMostrarPidiendoRostro(const String& userName) {
 void oledMostrarAccesoPermitido(const String& userName, float conf) {
   if (!oledOk) return;
   display.clearDisplay();
-  display.fillRect(0, 0, SCREEN_WIDTH, 14, SSD1306_WHITE);
-  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.fillRect(0, 0, SCREEN_WIDTH, 14, SH110X_WHITE);
+  display.setTextColor(SH110X_BLACK, SH110X_WHITE);
   display.setTextSize(1);
   display.setCursor(14, 3);
   display.print("ACCESO PERMITIDO");
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(SH110X_WHITE);
 
   display.setCursor(0, 22);
   display.setTextSize(1);
@@ -806,12 +807,12 @@ void oledMostrarAccesoPermitido(const String& userName, float conf) {
 void oledMostrarAccesoDenegado(const String& motivo) {
   if (!oledOk) return;
   display.clearDisplay();
-  display.fillRect(0, 0, SCREEN_WIDTH, 14, SSD1306_WHITE);
-  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.fillRect(0, 0, SCREEN_WIDTH, 14, SH110X_WHITE);
+  display.setTextColor(SH110X_BLACK, SH110X_WHITE);
   display.setTextSize(1);
   display.setCursor(18, 3);
   display.print("ACCESO DENEGADO");
-  display.setTextColor(SSD1306_WHITE);
+  display.setTextColor(SH110X_WHITE);
 
   display.setCursor(0, 24);
   display.setTextSize(1);
