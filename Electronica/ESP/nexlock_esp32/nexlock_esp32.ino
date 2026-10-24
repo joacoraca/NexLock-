@@ -9,6 +9,9 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Keypad.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include "mbedtls/sha256.h"
 
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
@@ -42,6 +45,15 @@ byte rowPins[ROWS] = {18, 33, 25, 26};
 byte colPins[COLS] = {27, 14, 13, 23};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
+// Pantalla OLED I2C (SSD1306 128x64)
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+#define OLED_SDA 21
+#define OLED_SCL 22
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+bool oledOk = false;
+
 // Indicadores y actuadores
 const int PIN_LED_GREEN = 2;   // LEDV
 const int PIN_LED_RED   = 15;  // LEDR
@@ -65,7 +77,7 @@ uint32_t lastHeartbeat = 0;
 String camFwVersion = "desconocida";
 bool camOnline = false;
 
-const char* FW_VERSION = "1.1.0";
+const char* FW_VERSION = "1.2.0";
 
 // ── Estructura de Veredicto Facial ──────────────────────────────────────────
 struct FaceVerdict {
@@ -88,6 +100,16 @@ void   abrirCerradura();
 void   beepCorto(int frec = 2000, int dur = 100);
 void   tonoError();
 void   tonoExito();
+
+// Prototipos UI OLED
+void   oledHeader(const char* title);
+void   oledMostrarInicio();
+void   oledMostrarWiFiOk(const String& ip);
+void   oledMostrarEnEspera();
+void   oledMostrarVerificandoPin();
+void   oledMostrarPidiendoRostro(const String& userName);
+void   oledMostrarAccesoPermitido(const String& userName, float conf);
+void   oledMostrarAccesoDenegado(const String& motivo);
 
 // ============================================================================
 // SETUP
@@ -112,6 +134,24 @@ void setup() {
   digitalWrite(PIN_MOTOR_IN1, LOW);
   digitalWrite(PIN_MOTOR_IN2, LOW);
 
+  // Inicializar Pantalla OLED I2C (SSD1306 128x64 en SDA:21, SCL:22)
+  Wire.begin(OLED_SDA, OLED_SCL);
+  if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    oledOk = true;
+    Serial.println("[OLED] Pantalla SSD1306 detectada en direccion 0x3C");
+  } else if (display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
+    oledOk = true;
+    Serial.println("[OLED] Pantalla SSD1306 detectada en direccion 0x3D");
+  } else {
+    Serial.println("[OLED] Advertencia: No se detecto pantalla SSD1306 en 0x3C ni 0x3D.");
+  }
+
+  if (oledOk) {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    oledMostrarInicio();
+  }
+
   // Inicializar UART con ESP32-CAM
   CamSerial.begin(115200, SERIAL_8N1, CAM_RX, CAM_TX);
   Serial.println("[NexLock] UART hacia ESP32-CAM inicializado (RX:19, TX:5)");
@@ -119,6 +159,11 @@ void setup() {
   // Conectar a Internet
   conectarWiFi();
   firebaseLogin();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    oledMostrarWiFiOk(WiFi.localIP().toString());
+    delay(1200);
+  }
 
   // Comprobar estado de la cámara
   pingCamara();
@@ -133,6 +178,9 @@ void setup() {
   Serial.println("  NexLock Listo: Ingresa PIN y presiona #");
   Serial.println("  Presiona * para borrar.");
   Serial.println("=============================================");
+
+  // Mostrar pantalla de espera lista para recibir PIN
+  oledMostrarEnEspera();
 }
 
 // ============================================================================
@@ -178,6 +226,7 @@ void loop() {
   if (key == '*') {
     pinIngresado = "";
     Serial.println("\n[Teclado] PIN borrado.");
+    oledMostrarEnEspera();
     digitalWrite(PIN_LED_RED, HIGH);
     delay(100);
     digitalWrite(PIN_LED_RED, LOW);
@@ -185,12 +234,16 @@ void loop() {
   } else if (key == '#') {
     if (pinIngresado.length() < 4) {
       Serial.println("\n[Teclado] PIN muy corto (minimo 4 digitos).");
+      oledMostrarAccesoDenegado("PIN muy corto");
       tonoError();
       pinIngresado = "";
+      delay(1500);
+      oledMostrarEnEspera();
       return;
     }
 
     Serial.println("\n[Proceso] 1er Factor: Verificando PIN...");
+    oledMostrarVerificandoPin();
     String pinHash = sha256Hash(pinIngresado);
     pinIngresado = "";
 
@@ -200,8 +253,11 @@ void loop() {
 
     if (!pinValido) {
       Serial.println("[Acceso] DENEGADO: PIN incorrecto.");
+      oledMostrarAccesoDenegado("PIN incorrecto");
       tonoError();
       guardarLog("fail", "", "", "fail", "", -1);
+      delay(2000);
+      oledMostrarEnEspera();
       return;
     }
 
@@ -211,13 +267,17 @@ void loop() {
     // Si el usuario no tiene rostro enrolado en la web, la doble validación no puede completarse
     if (!faceEnrolled) {
       Serial.println("[Acceso] DENEGADO: El usuario no tiene rostro registrado en el sistema.");
+      oledMostrarAccesoDenegado("Sin rostro reg.");
       tonoError();
       guardarLog("fail", userId, userName, "ok", "not_enrolled", -1);
+      delay(2500);
+      oledMostrarEnEspera();
       return;
     }
 
     // 2do Factor: Validación de rostro con el ESP32-CAM
     Serial.println("[Proceso] 2do Factor: Solicitando reconocimiento facial a la camara...");
+    oledMostrarPidiendoRostro(userName);
     digitalWrite(PIN_LED_GREEN, HIGH);
     digitalWrite(PIN_LED_RED, HIGH); // Ambos LEDs titilando indican "mirando a cámara"
 
@@ -228,19 +288,29 @@ void loop() {
 
     if (veredicto.result == "match") {
       Serial.printf("[Acceso] PERMITIDO: Rostro validado con %.1f%% de coincidencia!\n", veredicto.confidence);
+      oledMostrarAccesoPermitido(userName, veredicto.confidence);
       tonoExito();
       abrirCerradura();
       guardarLog("success", userId, userName, "ok", "match", veredicto.confidence);
+      oledMostrarEnEspera();
 
     } else {
       Serial.println("[Acceso] DENEGADO: Fallo reconocimiento facial -> " + veredicto.result);
+      String motivo = "Rostro invalido";
+      if (veredicto.result == "timeout")       motivo = "Camara sin resp.";
+      else if (veredicto.result == "no_face")  motivo = "Sin rostro cam.";
+      else if (veredicto.result == "no_match") motivo = "No coincide";
+      oledMostrarAccesoDenegado(motivo);
       tonoError();
       guardarLog("fail", userId, userName, "ok", veredicto.result, veredicto.confidence);
+      delay(2500);
+      oledMostrarEnEspera();
     }
 
   } else if (pinIngresado.length() < 8 && (key >= '0' && key <= '9')) {
     pinIngresado += key;
     Serial.print(key);
+    oledMostrarEnEspera();
   }
 }
 
@@ -620,4 +690,135 @@ void enviarHeartbeat() {
     Serial.println("[Heartbeat] Error actualizando heartbeat: " + String(code));
   }
   http.end();
+}
+
+// ============================================================================
+// FUNCIONES DE CONTROL DE PANTALLA OLED (SSD1306 128x64)
+// ============================================================================
+
+void oledHeader(const char* title) {
+  if (!oledOk) return;
+  display.clearDisplay();
+  display.fillRect(0, 0, SCREEN_WIDTH, 12, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(4, 2);
+  display.print(title);
+  display.setTextColor(SSD1306_WHITE);
+}
+
+void oledMostrarInicio() {
+  if (!oledOk) return;
+  oledHeader("NexLock System");
+  display.setCursor(0, 20);
+  display.setTextSize(1);
+  display.println("Iniciando...");
+  display.println("Conectando WiFi...");
+  display.display();
+}
+
+void oledMostrarWiFiOk(const String& ip) {
+  if (!oledOk) return;
+  oledHeader("NexLock Conectado");
+  display.setCursor(0, 18);
+  display.setTextSize(1);
+  display.println("WiFi: Conectado OK");
+  display.print("IP: ");
+  display.println(ip);
+  display.println("Firebase: Listo");
+  display.display();
+}
+
+void oledMostrarEnEspera() {
+  if (!oledOk) return;
+  oledHeader("NexLock 2FA Guard");
+
+  display.setCursor(0, 18);
+  display.setTextSize(1);
+  display.print("Ingrese PIN:");
+
+  // Asteriscos grandes centrados
+  display.setCursor(16, 32);
+  display.setTextSize(2);
+  if (pinIngresado.length() == 0) {
+    display.print("[    ]");
+  } else {
+    String masked = "";
+    for (size_t i = 0; i < pinIngresado.length(); i++) masked += "*";
+    display.print(masked);
+  }
+
+  // Guía en pie de pantalla
+  display.setTextSize(1);
+  display.setCursor(4, 54);
+  display.print("* Borrar    # Entrar");
+  display.display();
+}
+
+void oledMostrarVerificandoPin() {
+  if (!oledOk) return;
+  oledHeader("1er Factor: PIN");
+  display.setCursor(0, 22);
+  display.setTextSize(1);
+  display.println("Verificando PIN...");
+  display.println("Consultando Firestore...");
+  display.display();
+}
+
+void oledMostrarPidiendoRostro(const String& userName) {
+  if (!oledOk) return;
+  oledHeader("2do Factor: ROSTRO");
+  display.setCursor(0, 18);
+  display.setTextSize(1);
+  display.print("Usuario: ");
+  display.println(userName);
+  display.println("Mire a la camara...");
+  display.setCursor(14, 46);
+  display.print("[ Reconociendo ]");
+  display.display();
+}
+
+void oledMostrarAccesoPermitido(const String& userName, float conf) {
+  if (!oledOk) return;
+  display.clearDisplay();
+  display.fillRect(0, 0, SCREEN_WIDTH, 14, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(14, 3);
+  display.print("ACCESO PERMITIDO");
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setCursor(0, 22);
+  display.setTextSize(1);
+  display.print("Bienvenido:");
+  display.setCursor(0, 34);
+  display.println(userName);
+
+  display.setCursor(0, 50);
+  display.print("Puerta abierta...");
+  if (conf >= 0) {
+    display.setCursor(84, 50);
+    display.print(String((int)conf) + "%");
+  }
+  display.display();
+}
+
+void oledMostrarAccesoDenegado(const String& motivo) {
+  if (!oledOk) return;
+  display.clearDisplay();
+  display.fillRect(0, 0, SCREEN_WIDTH, 14, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(18, 3);
+  display.print("ACCESO DENEGADO");
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setCursor(0, 24);
+  display.setTextSize(1);
+  display.println("Motivo:");
+  display.setCursor(0, 36);
+  display.println(motivo);
+  display.setCursor(0, 52);
+  display.println("Reintente de nuevo");
+  display.display();
 }
