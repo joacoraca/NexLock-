@@ -43,13 +43,13 @@ CAM_ESP_PCB   = 1.6;
 LENTE_DIAM    = 9.2;  // Diámetro orificio lente OV2640
 FLASH_DIAM    = 4.5;  // Orificio para el LED flash blanco
 
-// Pantalla OLED 1.3" (PCB ~35.4 x 33.5mm)
+// Pantalla OLED 1.30" IIC V2.2 (Controlador SH1106 128x64)
 OLED_VENT_ANCHO = 32.0; // Ventana visible activa
-OLED_VENT_ALTO  = 17.5;
-OLED_PCB_ANCHO  = 35.8;
-OLED_PCB_ALTO   = 34.0;
-OLED_POSTE_DIST_X = 30.5;
-OLED_POSTE_DIST_Y = 28.5;
+OLED_VENT_ALTO  = 18.0;
+OLED_PCB_ANCHO  = 35.4;
+OLED_PCB_ALTO   = 33.5;
+OLED_POSTE_DIST_X = 30.5; // Distancia entre centros X
+OLED_POSTE_DIST_Y = 28.5; // Distancia entre centros Y
 
 // Teclado matricial 4x4 (Membrana con adhesivo)
 TECLADO_ANCHO   = 70.0;
@@ -361,15 +361,15 @@ module barra_cremallera() {
                 );
         }
 
-        // Ranura de cremallera: Dientes tallados para engranar con el piñón
+        // Ranura de cremallera: Dientes tallados encarando HACIA EL PIÑÓN (abajo, hacia -Y)
         for (j = [0:DIENTES_CREMALLERA-1]) {
-            translate([35 + j * PASO_DIENTE, ANCHO_CREMALLERA - 1.5, -1])
+            translate([25 + j * PASO_DIENTE, 1.2, -1])
                 rotate([0, 0, 45])
                     cube([MODULO_ENG*1.5, MODULO_ENG*1.5, ALTURA_CREMALLERA + 2]);
         }
 
-        // Ranura de tope de carrera (evita que el cerrojo se salga de la caja)
-        translate([20, 2, 2])
+        // Ranura de tope de carrera (en la cara opuesta para no interferir)
+        translate([20, ANCHO_CREMALLERA - 2.5, 2])
             cube([35, 2.5, ALTURA_CREMALLERA - 4]);
     }
 }

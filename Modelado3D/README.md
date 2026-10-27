@@ -1,6 +1,8 @@
 # NexLock — Modelado 3D del Gabinete y Mecanismo de Cerradura
 
-Este directorio contiene el diseño paramétrico 3D completo para el sistema **NexLock**, diseñado en **[OpenSCAD](https://openscad.org/)** (software de modelado 3D por código libre y gratuito).
+Este directorio contiene el diseño paramétrico 3D completo para el sistema **NexLock**, disponible en dos formatos:
+1. **[Onshape](https://cad.onshape.com/)**: Archivo FeatureScript (`nexlock_featurescript.fs`) para modelar directamente en la nube.
+2. **[OpenSCAD](https://openscad.org/)**: Archivo paramétrico estándar (`nexlock_gabinete.scad`).
 
 ---
 
@@ -12,8 +14,8 @@ Este directorio contiene el diseño paramétrico 3D completo para el sistema **N
   │  (◎ Lente Cámara OV2640)                     │  <- ESP32-CAM pegado a la cara interna
   │                                              │
   │  [LED Verde]  ┌──────────────┐  [LED Rojo]   │
-  │               │ Pantalla     │               │  <- OLED 1.3" SH1106
-  │  (( Buzzer )) │ OLED 1.30"   │               │
+  │               │ Pantalla     │               │  <- OLED 1.30'' IIC V2.2 (SH1106)
+  │  (( Buzzer )) │ OLED 1.30"   │               │     Ventana: 32x18mm | M2: 30.5x28.5mm
   │               └──────────────┘               │  [Switch On/Off]
   │                                              │  (en el lateral)
   │  ┌────────────────────────────────────────┐  │
@@ -24,40 +26,54 @@ Este directorio contiene el diseño paramétrico 3D completo para el sistema **N
   │  └────────────────────────────────────────┘  │
   │                                              │
   │ ════════════════════════════════════════════ │
-  │ [Cerrojo Cremallera ◄══►] [Engranaje Piñón]  │  <- Mecanismo motorizado
-  │                          [Motorreductor DC]  │     en la base inferior
+  │ [Cerrojo Cremallera ◄══►]                    │  <- Dientes encarando hacia abajo
+  │               [Engranaje Piñón engranado]    │  <- Engranaje debajo de la cremallera
+  │               [Motorreductor DC]             │
   └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🛠️ Archivo Principal: `nexlock_gabinete.scad`
+## ☁️ Opción 1: Cómo usar FeatureScript en Onshape
 
-El archivo es 100% paramétrico y autosuficiente (no requiere librerías externas). Para visualizar o exportar cada pieza en **OpenSCAD**:
-
-1. Abre `nexlock_gabinete.scad` en **OpenSCAD**.
-2. En la línea 24 del archivo, modifica la variable `PIEZA`:
-   * `"todo_explosion"`: Muestra el ensamble completo en 3D con colores diferenciados.
-   * `"tapa_frontal"`: Genera únicamente la tapa delantera lista para imprimir.
-   * `"caja_base"`: Genera la caja base trasera con la cuna del motor y los rieles guía.
-   * `"pinon_motor"`: Genera el engranaje para calzar en el eje del motor.
-   * `"barra_cremallera"`: Genera el cerrojo móvil con los dientes y la punta biselada.
-3. Presiona **F5** para previsualizar.
-4. Presiona **F6** para renderizar la pieza seleccionada y luego **F7** (o *File -> Export as STL*) para guardar el archivo `.STL`.
+1. Entra a tu cuenta en [Onshape](https://cad.onshape.com/) y abre tu documento de trabajo.
+2. En la esquina inferior izquierda, haz clic en el botón **`+`** (Insert new element) y selecciona **Create Feature Studio**.
+3. Se abrirá una pestaña de código. Borra el código de plantilla que viene por defecto.
+4. Abre el archivo [`nexlock_featurescript.fs`](file:///C:/Users/Administrator/.gemini/antigravity/worktrees/nexlock-firebase/connect_to_github/Modelado3D/nexlock_featurescript.fs), copia todo su contenido y pégalo en la pestaña de Onshape.
+5. Haz clic en el botón superior de **Commit** (ícono de tilde verde o guardar).
+6. Regresa a tu pestaña de **Part Studio**. En la barra de herramientas superior verás el nuevo botón de operación personalizada: **"NexLock Gabinete y Mecanismo"**.
+7. Al hacer clic, se abre una ventana donde puedes elegir en el menú desplegable:
+   * **Tapa Frontal**
+   * **Caja Base**
+   * **Barra Cremallera**
+   * **Piñon Motor**
+8. ¡Listo! Se genera la geometría sólida exacta en tu Part Studio lista para editar, ensamblar o exportar a STL.
 
 ---
 
-## ⚙️ Características Mecánicas Destacadas
+## 🛠️ Opción 2: Cómo usar OpenSCAD
 
-1. **Cámara ultra cercana (ESP32-CAM):**
-   * El cable plano FFC del sensor OV2640 tiene apenas ~2 cm de largo. 
-   * La tapa incluye un **marco de retención interno** que sujeta el PCB del ESP32-CAM a ras de la pared frontal, permitiendo que el lente asome por el orificio de 9.2 mm sin estirar ni doblar el flex.
-2. **Mecanismo Piñón - Cremallera (Módulo 1.5):**
-   * El piñón circular tiene 14 dientes y calce tipo **D** para ejes estándar de motorreductores TT amarillos o metálicos N20.
-   * La cremallera es una barra sólida de 85 mm con punta biselada para que la puerta tranque suavemente al cerrarse, y una ranura de tope para evitar que el cerrojo se salga de su riel.
-3. **Fijación y Ensamble:**
-   * 4 torres en las esquinas diseñadas para tornillos **M3**. En la tapa frontal tienen avellanado para que la cabeza del tornillo quede escondida.
-   * La pantalla OLED se fija por detrás con 4 tornillitos **M2** en sus 4 esquinas.
+1. Abre [`nexlock_gabinete.scad`](file:///C:/Users/Administrator/.gemini/antigravity/worktrees/nexlock-firebase/connect_to_github/Modelado3D/nexlock_gabinete.scad) en **OpenSCAD**.
+2. En la línea 24 del archivo, modifica la variable `PIEZA`:
+   * `"todo_explosion"`: Muestra el ensamble completo en 3D con colores diferenciados.
+   * `"tapa_frontal"`: Genera la tapa delantera.
+   * `"caja_base"`: Genera la caja base trasera con la cuna del motor y los rieles guía.
+   * `"pinon_motor"`: Genera el engranaje para calzar en el eje del motor.
+   * `"barra_cremallera"`: Genera el cerrojo móvil con los dientes encarando al piñón.
+3. Presiona **F5** para previsualizar.
+4. Presiona **F6** para renderizar la pieza seleccionada y luego **F7** (o *File -> Export as STL*) para exportar a `.STL`.
+
+---
+
+## ⚙️ Características Mecánicas Corregidas
+
+1. **Pantalla OLED 1.30'' IIC V2.2 (SH1106):**
+   * Ventana visible ajustada a 32 mm x 18 mm.
+   * 4 agujeros de anclaje M2 con espaciado exacto de **30.5 mm en X** y **28.5 mm en Y**.
+2. **Orientación de la Barra Dentada (Cremallera):**
+   * Los dientes de la cremallera están ubicados en la cara inferior encarando directamente hacia el engranaje piñón del motor, permitiendo el engrane directo.
+3. **ESP32-CAM (Cable corto del sensor):**
+   * Marco de retención interior pegado al frente para que el sensor OV2640 asome por su orificio de 9.2 mm sin someter a esfuerzo el flex corto.
 
 ---
 
