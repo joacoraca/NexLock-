@@ -9,8 +9,26 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+
+// ── REDES WIFI PRECONFIGURADAS (Sincronizadas con ESP32 central) ────────────
+struct WiFiRed {
+  const char* nombre;
+  const char* ssid;
+  const char* password;
+};
+
+const WiFiRed REDES_WIFI[4] = {
+  { "Wifi ETRR",       "ETRRAR",    "" },             // Opción 1 (abierta)
+  { "Casa (Papa)",     "Racamatos", "Ateyalfa2026" }, // Opción 2
+  { "Casa (Mama)",     "Ozzy",      "19312305" },     // Opción 3
+  { "Mobile Hotspot",  "Joaco",     "Joaco2008" }     // Opción 4
+};
+
+Preferences prefs;
+int redSeleccionada = 1; // 1 = Casa (Papá) por defecto
 
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
 #if __has_include("secrets.h")
@@ -71,6 +89,7 @@ bool     cameraInitialized = false;
 
 // ── Prototipos ──────────────────────────────────────────────────────────────
 void   conectarWiFi();
+void   conectarWiFiRed(int indiceRed);
 bool   firebaseLogin();
 String getAuthHeader();
 bool   iniciarCamara();
@@ -105,8 +124,13 @@ void setup() {
     Serial.println("[CAM] ERROR CRITICO: Fallo inicializacion del sensor de camara!");
   }
 
+  // Cargar red WiFi guardada en NVS
+  prefs.begin("nexlock_cam", false);
+  redSeleccionada = prefs.getInt("wifi_idx", 1);
+  if (redSeleccionada < 0 || redSeleccionada > 3) redSeleccionada = 1;
+
   Serial.println("[CAM] Conectando a red WiFi...");
-  conectarWiFi();
+  conectarWiFiRed(redSeleccionada);
 
   Serial.println("[CAM] Autenticando en Firebase...");
   if (firebaseLogin()) {
@@ -155,7 +179,24 @@ void procesarComandoUART(const String& cmd) {
     return;
   }
 
-  // 2. Solicitud de Verificación: NL,VERIFY,<userId>
+  // 2. Sincronización de red WiFi: NL,WIFI,<1..4>
+  if (cmd.startsWith("NL,WIFI,")) {
+    int idx = cmd.substring(8).toInt() - 1; // Recibe 1..4 -> pasa a 0..3
+    if (idx >= 0 && idx < 4) {
+      if (idx != redSeleccionada || WiFi.status() != WL_CONNECTED) {
+        redSeleccionada = idx;
+        prefs.putInt("wifi_idx", redSeleccionada);
+        Serial.printf("[CAM] UART -> Cambiando a red #%d: %s (%s)...\n", idx + 1, REDES_WIFI[idx].nombre, REDES_WIFI[idx].ssid);
+        conectarWiFiRed(redSeleccionada);
+        if (WiFi.status() == WL_CONNECTED) {
+          firebaseLogin();
+        }
+      }
+    }
+    return;
+  }
+
+  // 3. Solicitud de Verificación: NL,VERIFY,<userId>
   if (cmd.startsWith("NL,VERIFY,")) {
     String userId = cmd.substring(10);
     userId.trim();
@@ -405,16 +446,24 @@ bool iniciarCamara() {
 // ============================================================================
 // CONECTIVIDAD & FIREBASE
 // ============================================================================
-void conectarWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-  Serial.print("[CAM] Conectando a red: ");
-  Serial.println(WIFI_SSID);
+void conectarWiFiRed(int indiceRed) {
+  if (indiceRed < 0 || indiceRed > 3) indiceRed = 1;
+  const WiFiRed& red = REDES_WIFI[indiceRed];
+
+  Serial.printf("[CAM] Conectando a red: %s (%s)...\n", red.nombre, red.ssid);
+
+  WiFi.disconnect(true);
+  delay(100);
 
   // Modo estacion y potencia RF moderada (11dBm) para evitar caidas de tension en cables
   WiFi.mode(WIFI_STA);
   WiFi.setTxPower(WIFI_POWER_11dBm);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  if (strlen(red.password) == 0) {
+    WiFi.begin(red.ssid); // Red abierta (sin contraseña)
+  } else {
+    WiFi.begin(red.ssid, red.password);
+  }
 
   int intentos = 0;
   while (WiFi.status() != WL_CONNECTED && intentos < 30) {
@@ -426,8 +475,12 @@ void conectarWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n[CAM] WiFi Conectado! IP: " + WiFi.localIP().toString());
   } else {
-    Serial.println("\n[CAM] Error de conexion WiFi!");
+    Serial.println("\n[CAM] Advertencia: Error de conexion WiFi!");
   }
+}
+
+void conectarWiFi() {
+  conectarWiFiRed(redSeleccionada);
 }
 
 bool firebaseLogin() {

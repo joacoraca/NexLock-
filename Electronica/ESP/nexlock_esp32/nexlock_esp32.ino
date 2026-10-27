@@ -12,7 +12,26 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
+#include <Preferences.h>
 #include "mbedtls/sha256.h"
+
+// ── REDES WIFI PRECONFIGURADAS (Seleccionables con tecla 'D') ───────────────
+struct WiFiRed {
+  const char* nombreOled;
+  const char* ssid;
+  const char* password;
+};
+
+const WiFiRed REDES_WIFI[4] = {
+  { "Wifi ETRR",       "ETRRAR",    "" },             // Opción 1 (abierta)
+  { "Casa (Papa)",     "Racamatos", "Ateyalfa2026" }, // Opción 2
+  { "Casa (Mama)",     "Ozzy",      "19312305" },     // Opción 3
+  { "Mobile Hotspot",  "Joaco",     "Joaco2008" }     // Opción 4
+};
+
+Preferences prefs;
+int redSeleccionada = 1; // 1 = Casa (Papá) por defecto (índice 0 a 3)
+bool enMenuWiFi = false;
 
 // Si tenés "secrets.h", se cargan tus credenciales automáticamente.
 #if __has_include("secrets.h")
@@ -87,6 +106,7 @@ struct FaceVerdict {
 
 // ── Prototipos ──────────────────────────────────────────────────────────────
 void   conectarWiFi();
+void   conectarWiFiRed(int indiceRed);
 bool   firebaseLogin();
 String getAuthHeader();
 String sha256Hash(const String& input);
@@ -110,6 +130,7 @@ void   oledMostrarVerificandoPin();
 void   oledMostrarPidiendoRostro(const String& userName);
 void   oledMostrarAccesoPermitido(const String& userName, float conf);
 void   oledMostrarAccesoDenegado(const String& motivo);
+void   oledMostrarMenuWiFi();
 
 // ============================================================================
 // SETUP
@@ -157,14 +178,22 @@ void setup() {
   CamSerial.begin(115200, SERIAL_8N1, CAM_RX, CAM_TX);
   Serial.println("[NexLock] UART hacia ESP32-CAM inicializado (RX:19, TX:5)");
 
-  // Conectar a Internet
-  conectarWiFi();
+  // Cargar red WiFi guardada en memoria no volátil (NVS)
+  prefs.begin("nexlock", false);
+  redSeleccionada = prefs.getInt("wifi_idx", 1); // 1 = Casa (Papá) por defecto
+  if (redSeleccionada < 0 || redSeleccionada > 3) redSeleccionada = 1;
+
+  // Conectar a Internet con la red seleccionada
+  conectarWiFiRed(redSeleccionada);
   firebaseLogin();
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED && oledOk) {
     oledMostrarWiFiOk(WiFi.localIP().toString());
     delay(1200);
   }
+
+  // Notificar a la cámara el índice de red actual
+  CamSerial.printf("NL,WIFI,%d\n", redSeleccionada + 1);
 
   // Comprobar estado de la cámara
   pingCamara();
@@ -178,6 +207,7 @@ void setup() {
   Serial.println("\n=============================================");
   Serial.println("  NexLock Listo: Ingresa PIN y presiona #");
   Serial.println("  Presiona * para borrar.");
+  Serial.println("  Presiona D para cambiar red WiFi.");
   Serial.println("=============================================");
 
   // Mostrar pantalla de espera lista para recibir PIN
@@ -188,9 +218,9 @@ void setup() {
 // LOOP PRINCIPAL
 // ============================================================================
 void loop() {
-  // 1. Mantener WiFi conectado
-  if (WiFi.status() != WL_CONNECTED) {
-    conectarWiFi();
+  // 1. Mantener WiFi conectado (solo fuera del menú)
+  if (WiFi.status() != WL_CONNECTED && !enMenuWiFi) {
+    conectarWiFiRed(redSeleccionada);
   }
 
   // 2. Procesar mensajes asíncronos del ESP32-CAM (ej: arranque inicial o PONG)
@@ -202,6 +232,7 @@ void loop() {
         camFwVersion = line.substring(9);
         camOnline = true;
         Serial.println("[ESP32-CAM] Detectado y listo! Firmware: " + camFwVersion);
+        CamSerial.printf("NL,WIFI,%d\n", redSeleccionada + 1);
       } else if (line.startsWith("NL,PONG,")) {
         camFwVersion = line.substring(8);
         camOnline = true;
@@ -212,7 +243,7 @@ void loop() {
   }
 
   // 3. Heartbeat periódico a Firestore (cada 60 segundos)
-  if (millis() - lastHeartbeat >= 60000 || lastHeartbeat == 0) {
+  if (!enMenuWiFi && (millis() - lastHeartbeat >= 60000 || lastHeartbeat == 0)) {
     lastHeartbeat = millis();
     pingCamara();
     enviarHeartbeat();
@@ -223,6 +254,74 @@ void loop() {
   if (!key) return;
 
   beepCorto(1800, 40);
+
+  // --- SUBMENÚ DE SELECCIÓN DE REDES WIFI (Activado con tecla 'D') ---
+  if (enMenuWiFi) {
+    if (key >= '1' && key <= '4') {
+      int idx = key - '1';
+      redSeleccionada = idx;
+      prefs.putInt("wifi_idx", redSeleccionada);
+      Serial.printf("\n[WiFi] Cambiando a Red #%d: %s (%s)\n", idx + 1, REDES_WIFI[idx].nombreOled, REDES_WIFI[idx].ssid);
+
+      // Notificar a la cámara para que se conecte a la misma red
+      CamSerial.printf("NL,WIFI,%d\n", idx + 1);
+
+      if (oledOk) {
+        display.clearDisplay();
+        oledHeader("Cambio de Red");
+        display.setCursor(0, 18);
+        display.setTextSize(1);
+        display.println("Conectando a:");
+        display.print("> ");
+        display.println(REDES_WIFI[idx].nombreOled);
+        display.println("\nPor favor espere...");
+        display.display();
+      }
+
+      conectarWiFiRed(redSeleccionada);
+
+      if (WiFi.status() == WL_CONNECTED) {
+        firebaseLogin();
+        if (oledOk) {
+          oledMostrarWiFiOk(WiFi.localIP().toString());
+          delay(1500);
+        }
+      } else {
+        if (oledOk) {
+          display.clearDisplay();
+          oledHeader("Error WiFi");
+          display.setCursor(0, 22);
+          display.setTextSize(1);
+          display.println("Fallo conexion con:");
+          display.print("> ");
+          display.println(REDES_WIFI[idx].ssid);
+          display.display();
+          tonoError();
+          delay(2000);
+        }
+      }
+
+      enMenuWiFi = false;
+      oledMostrarEnEspera();
+      return;
+
+    } else if (key == '*' || key == 'D' || key == '#') {
+      Serial.println("\n[WiFi] Menu cancelado.");
+      enMenuWiFi = false;
+      oledMostrarEnEspera();
+      return;
+    }
+    return; // Ignorar otras teclas dentro del menú
+  }
+
+  // Tecla 'D' abre el menú de selección de WiFi
+  if (key == 'D') {
+    pinIngresado = "";
+    enMenuWiFi = true;
+    Serial.println("\n[Teclado] Tecla 'D' -> Abriendo menu de WiFi...");
+    oledMostrarMenuWiFi();
+    return;
+  }
 
   if (key == '*') {
     pinIngresado = "";
@@ -433,15 +532,24 @@ void tonoExito() {
 // CONECTIVIDAD & FIREBASE (REST API)
 // ============================================================================
 
-void conectarWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-  Serial.print("[WiFi] Conectando a ");
-  Serial.print(WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+void conectarWiFiRed(int indiceRed) {
+  if (indiceRed < 0 || indiceRed > 3) indiceRed = 1;
+  const WiFiRed& red = REDES_WIFI[indiceRed];
+
+  Serial.printf("\n[WiFi] Conectando a %s (SSID: %s)...\n", red.nombreOled, red.ssid);
+  WiFi.disconnect(true);
+  delay(100);
+  WiFi.mode(WIFI_STA);
+
+  if (strlen(red.password) == 0) {
+    WiFi.begin(red.ssid); // Red abierta (sin contraseña)
+  } else {
+    WiFi.begin(red.ssid, red.password);
+  }
 
   int intentos = 0;
-  while (WiFi.status() != WL_CONNECTED && intentos < 25) {
-    delay(400);
+  while (WiFi.status() != WL_CONNECTED && intentos < 30) {
+    delay(350);
     Serial.print(".");
     intentos++;
   }
@@ -449,8 +557,12 @@ void conectarWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n[WiFi] Conectado exitosamente. IP: " + WiFi.localIP().toString());
   } else {
-    Serial.println("\n[WiFi] Error de conexion.");
+    Serial.println("\n[WiFi] Advertencia: Error de conexion a " + String(red.ssid));
   }
+}
+
+void conectarWiFi() {
+  conectarWiFiRed(redSeleccionada);
 }
 
 // Login con cuenta de dispositivo para obtener ID Token de Firestore
@@ -751,8 +863,8 @@ void oledMostrarEnEspera() {
 
   // Guía en pie de pantalla
   display.setTextSize(1);
-  display.setCursor(4, 54);
-  display.print("* Borrar    # Entrar");
+  display.setCursor(0, 54);
+  display.print("*Clr  #Ok  [D]WiFi");
   display.display();
 }
 
@@ -821,5 +933,27 @@ void oledMostrarAccesoDenegado(const String& motivo) {
   display.println(motivo);
   display.setCursor(0, 52);
   display.println("Reintente de nuevo");
+  display.display();
+}
+
+void oledMostrarMenuWiFi() {
+  if (!oledOk) return;
+  display.clearDisplay();
+  oledHeader("Elegir Red WiFi");
+
+  display.setTextSize(1);
+  const int yPositions[4] = {15, 25, 35, 45};
+  for (int i = 0; i < 4; i++) {
+    display.setCursor(0, yPositions[i]);
+    if (i == redSeleccionada) {
+      display.print(">");
+    } else {
+      display.print(" ");
+    }
+    display.print(String(i + 1) + ":" + REDES_WIFI[i].nombreOled);
+  }
+
+  display.setCursor(14, 56);
+  display.print("[*] Cancelar");
   display.display();
 }
