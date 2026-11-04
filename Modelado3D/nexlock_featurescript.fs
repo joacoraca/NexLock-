@@ -1,62 +1,60 @@
-// ============================================================================
-// NexLock — Gabinete y Mecanismo 3D (FeatureScript para Onshape)
-// ============================================================================
-// 
-// ⚠️ IMPORTANTE SOBRE LAS DOS PRIMERAS LÍNEAS DE VERSIÓN:
-// Al crear un nuevo "Feature Studio" en Onshape, el editor escribe automáticamente
-// las 2 primeras líneas con la versión exacta de tu documento.
-// Mantén esas 2 líneas originales que Onshape te generó y pega el resto debajo.
-// ============================================================================
-
-FeatureScript 2400; // <- Si tu Onshape tiene otro número aquí (ej: 2411, 2200), conserva el tuyo
-import(path : "onshape/std/geometry.fs", version : "2400.0"); // <- Conserva tu versión original
+FeatureScript 3112;
+import(path : "onshape/std/geometry.fs", version : "3112.0");
 
 /**
- * Componentes y adaptaciones integradas:
- *  1. Pantalla OLED 1.30'' IIC V2.2 (Controlador SH1106, 128x64):
- *     - Ventana frontal: 32 mm x 18 mm
- *     - 4 orificios de montaje M2 con separación entre centros: 30.5 mm x 28.5 mm
- *  2. ESP32-CAM:
- *     - Alojamiento en la cara interior para cable plano flex corto del sensor OV2640
- *     - Orificio para el lente: 9.2 mm
- *     - Orificio para el LED Flash: 4.5 mm
- *  3. Teclado Matricial 4x4:
- *     - Rebaje frontal de 0.8 mm (70 mm x 77 mm)
- *     - Ranura pasa-cables de 22 mm x 2.5 mm
- *  4. LEDs de Estado (Verde / Rojo) de 5.2 mm y Rejilla acústica para Buzzer
- *  5. Interruptor balancín de encendido (15.2 mm x 10.6 mm)
- *  6. Mecanismo de Cerradura:
- *     - Barra Cremallera con dientes encarando HACIA el engranaje piñón
- *     - Piñón circular con calce para eje de motor tipo D
- *     - Rieles guía lineales y cuna soporte para motorreductor
+ * ============================================================================
+ * NexLock — Smart Lock Vertical Column (Diseño Pro Slim)
+ * ============================================================================
+ * 
+ * Basado fielmente en el diseño visual moderno de cerradura vertical:
+ *  1. FORMATO: Gabinete esbelto y vertical (80 mm x 240 mm x 34 mm) con biseles
+ *     elegantes (chaflán 45°) en todo el perímetro frontal.
+ *  2. SUPERIOR: Lente de cámara OV2640 con bisel concéntrico decorativo y
+ *     orificio sensor/flash superior.
+ *  3. CENTRO: Pantalla OLED 1.30'' IIC V2.2 (SH1106) con marco rebajado +
+ *     2 LEDs de estado verticales a su derecha (Verde arriba, Rojo abajo).
+ *  4. LATERAL IZQUIERDO: Cerrojo motorizado móvil (pestillo) saliendo por su
+ *     ranura lateral entre el display y el teclado.
+ *  5. INFERIOR: Teclado matricial 4x4 integrado en cajera rebajada con 16 teclas
+ *     táctiles en relieve (1,2,3,A / 4,5,6,B / 7,8,9,C / *,0,#,D).
+ *  6. INTERIOR: Cunas precisas para ESP32-CAM (cable flex plano a ras sin tensión),
+ *     guías lineales para la barra cremallera y soporte motorreductor.
  */
 
 // ── ENUM SELECTOR DE PIEZAS ────────────────────────────────────────────────
 export enum TipoPiezaNexLock
 {
-    annotation { "Name" : "Tapa Frontal (OLED 1.3, Camara, Teclado, LEDs)" }
+    annotation { "Name" : "Ensamble Completo (Vista Modelo 3D)" }
+    ENSAMBLE_COMPLETO,
+    annotation { "Name" : "Tapa Frontal (Cámara, OLED 1.3, Teclado 4x4, LEDs)" }
     TAPA_FRONTAL,
-    annotation { "Name" : "Caja Base (Soporte Motor, Rieles y ESP32)" }
+    annotation { "Name" : "Caja Base (Rieles Guía, Cuna Motor y ESP32)" }
     CAJA_BASE,
-    annotation { "Name" : "Barra Cremallera (Cerrojo dentado movil)" }
+    annotation { "Name" : "Pestillo Cerrojo (Barra Cremallera dentada)" }
     BARRA_CREMALLERA,
-    annotation { "Name" : "Pinon Motor (Engranaje circular eje D)" }
+    annotation { "Name" : "Piñon Motor (Engranaje circular con eje D)" }
     PINON_MOTOR
 }
 
 // ── DEFINICIÓN DEL CUSTOM FEATURE ──────────────────────────────────────────
-annotation { "Feature Type Name" : "NexLock Gabinete y Mecanismo" }
-export const nexlockGabinete = defineFeature(function(context is Context, id is Id, definition is map)
+annotation { "Feature Type Name" : "NexLock Smart Lock 3D" }
+export const nexlockSmartLock = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
     {
-        annotation { "Name" : "Seleccionar Pieza a Generar" }
+        annotation { "Name" : "Pieza a Generar" }
         definition.pieza is TipoPiezaNexLock;
 
         annotation { "Name" : "Espesor de Pared" }
-        isLength(definition.espesorPared, { (millimeter) : [1.5, 2.6, 5.0] } as LengthBoundSpec);
+        isLength(definition.espesorPared, { (millimeter) : [1.8, 2.6, 4.5] } as LengthBoundSpec);
     }
     {
-        if (definition.pieza == TipoPiezaNexLock.TAPA_FRONTAL)
+        if (definition.pieza == TipoPiezaNexLock.ENSAMBLE_COMPLETO)
+        {
+            generarTapaFrontal(context, id + "tapa", definition);
+            generarCajaBase(context, id + "base", definition);
+            generarBarraCremallera(context, id + "cerrojo", definition, true);
+        }
+        else if (definition.pieza == TipoPiezaNexLock.TAPA_FRONTAL)
         {
             generarTapaFrontal(context, id, definition);
         }
@@ -66,7 +64,7 @@ export const nexlockGabinete = defineFeature(function(context is Context, id is 
         }
         else if (definition.pieza == TipoPiezaNexLock.BARRA_CREMALLERA)
         {
-            generarBarraCremallera(context, id, definition);
+            generarBarraCremallera(context, id, definition, false);
         }
         else if (definition.pieza == TipoPiezaNexLock.PINON_MOTOR)
         {
@@ -74,7 +72,7 @@ export const nexlockGabinete = defineFeature(function(context is Context, id is 
         }
     });
 
-// ── FUNCIÓN AUXILIAR: FILTRAR BORDES VERTICALES PARA REDONDEO ──────────────
+// ── FILTRO AUXILIAR: BORDES VERTICALES ──────────────────────────────────────
 function filtrarBordesVerticales(context is Context, queryBordes is Query) returns Query
 {
     var verticales = [];
@@ -92,16 +90,16 @@ function filtrarBordesVerticales(context is Context, queryBordes is Query) retur
 
 
 // ============================================================================
-// 1. TAPA FRONTAL
+// 1. TAPA FRONTAL SLIM
 // ============================================================================
 function generarTapaFrontal(context is Context, id is Id, definition is map)
 {
-    const ancho = 108 * millimeter;
-    const alto = 178 * millimeter;
-    const prof = 12 * millimeter;
+    const ancho = 80 * millimeter;
+    const alto = 240 * millimeter;
+    const prof = 14 * millimeter;
     const esp = definition.espesorPared;
 
-    // 1. Bloque exterior base en el plano XY (Z=0)
+    // 1. Bloque principal
     var skBase = newSketchOnPlane(context, id + "skBase", {
         "sketchPlane" : XY_PLANE
     });
@@ -119,18 +117,17 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Redondeo de las 4 esquinas exteriores (R=6mm)
+    // 2. Redondeo de las 4 esquinas verticales exteriores (R=8mm)
     var bordesVert = filtrarBordesVerticales(context, qCreatedBy(id + "extBase", EntityType.EDGE));
     if (!isQueryEmpty(context, bordesVert))
     {
         opFillet(context, id + "filletEsquinas", {
             "entities" : bordesVert,
-            "radius" : 6 * millimeter
+            "radius" : 8 * millimeter
         });
     }
 
-    // 3. Vaciado interior (Cavitad)
-    // El vaciado se hace desde Z = esp hacia arriba para dejar la pared frontal sólida de espesor 'esp'
+    // 3. Vaciado interior para alojar los módulos electrónicos (desde Z=esp hasta arriba)
     var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
     var skCavidad = newSketchOnPlane(context, id + "skCavidad", {
         "sketchPlane" : planoCavidad
@@ -150,71 +147,26 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // 4. Perforaciones en el frente (Plano XY Z=0)
-    var skCortes = newSketchOnPlane(context, id + "skCortes", {
+    // ── PERFORACIONES Y RELIEVES FRONTALES (Z = 0) ──────────────────────────
+
+    // 4. A) SENSOR SUPERIOR / FLASH & CÁMARA OV2640 (Y = +76 mm)
+    var skCam = newSketchOnPlane(context, id + "skCam", {
         "sketchPlane" : XY_PLANE
     });
-
-    // A) ESP32-CAM: Lente (diam 9.2mm) y Flash (diam 4.5mm)
-    // Ubicado en la parte superior: Y = 57 mm
-    skCircle(skCortes, "lenteCam", {
-        "center" : vector(0, 57) * millimeter,
-        "radius" : 4.6 * millimeter
+    // Orificio superior micrófono / flash
+    skCircle(skCam, "holeSensorTop", {
+        "center" : vector(0, 94) * millimeter,
+        "radius" : 1.8 * millimeter
     });
-    skCircle(skCortes, "flashCam", {
-        "center" : vector(0, 65) * millimeter,
-        "radius" : 2.25 * millimeter
+    // Lente central de cámara OV2640 (pasante)
+    skCircle(skCam, "holeLente", {
+        "center" : vector(0, 76) * millimeter,
+        "radius" : 4.8 * millimeter
     });
+    skSolve(skCam);
 
-    // B) PANTALLA OLED 1.30'' IIC V2.2 (Controlador SH1106)
-    // Ventana visible activa: 32 mm x 18 mm
-    skRectangle(skCortes, "ventanaOled", {
-        "firstCorner" : vector(-16, 0) * millimeter,
-        "secondCorner" : vector(16, 18) * millimeter
-    });
-    // 4 orificios para tornillos M2 de fijación OLED (30.5 mm en X, 28.5 mm en Y)
-    const oledX = 15.25 * millimeter;
-    const oledY1 = -5.25 * millimeter;
-    const oledY2 = 23.25 * millimeter;
-    skCircle(skCortes, "oledHole1", { "center" : vector(-oledX, oledY1), "radius" : 1.1 * millimeter });
-    skCircle(skCortes, "oledHole2", { "center" : vector(oledX, oledY1),  "radius" : 1.1 * millimeter });
-    skCircle(skCortes, "oledHole3", { "center" : vector(-oledX, oledY2), "radius" : 1.1 * millimeter });
-    skCircle(skCortes, "oledHole4", { "center" : vector(oledX, oledY2),  "radius" : 1.1 * millimeter });
-
-    // C) LEDs de Estado (Verde y Rojo) de 5.2 mm
-    skCircle(skCortes, "ledVerde", { "center" : vector(-28, 9) * millimeter, "radius" : 2.6 * millimeter });
-    skCircle(skCortes, "ledRojo",  { "center" : vector(28, 9) * millimeter,  "radius" : 2.6 * millimeter });
-
-    // D) Rejilla Acústica Buzzer (Patrón circular)
-    skCircle(skCortes, "buzzerC", { "center" : vector(-28, -11) * millimeter, "radius" : 1.2 * millimeter });
-    for (var i = 0; i < 6; i += 1)
-    {
-        const ang = i * 60 * degree;
-        skCircle(skCortes, "buzzer" ~ i, {
-            "center" : vector(-28 + 4.0 * cos(ang), -11 + 4.0 * sin(ang)) * millimeter,
-            "radius" : 1.1 * millimeter
-        });
-    }
-
-    // E) Teclado Matricial 4x4 (Zona inferior: Y = -47 mm)
-    // Ranura pasacables hacia el interior
-    skRectangle(skCortes, "ranuraTeclado", {
-        "firstCorner" : vector(-11, -16) * millimeter,
-        "secondCorner" : vector(11, -13.5) * millimeter
-    });
-
-    // F) 4 orificios en las esquinas para tornillos de cierre M3
-    const tornX = 44 * millimeter;
-    const tornY = 79 * millimeter;
-    skCircle(skCortes, "torn1", { "center" : vector(-tornX, -tornY), "radius" : 1.7 * millimeter });
-    skCircle(skCortes, "torn2", { "center" : vector(tornX, -tornY),  "radius" : 1.7 * millimeter });
-    skCircle(skCortes, "torn3", { "center" : vector(-tornX, tornY),  "radius" : 1.7 * millimeter });
-    skCircle(skCortes, "torn4", { "center" : vector(tornX, tornY),   "radius" : 1.7 * millimeter });
-
-    skSolve(skCortes);
-
-    extrude(context, id + "extCortes", {
-        "entities" : qSketchRegion(id + "skCortes"),
+    extrude(context, id + "extCamHoles", {
+        "entities" : qSketchRegion(id + "skCam"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
         "depth" : esp + 1 * millimeter,
@@ -222,21 +174,151 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // 5. Rebaje superficial para alojar la lámina del teclado matricial (0.8 mm de prof en Z=0)
-    var skRebajeTeclado = newSketchOnPlane(context, id + "skRebajeTeclado", {
+    // Bisel concéntrico decorativo exterior de la cámara (rebaje estético de 0.8mm)
+    var skBiselCam = newSketchOnPlane(context, id + "skBiselCam", {
         "sketchPlane" : XY_PLANE
     });
-    skRectangle(skRebajeTeclado, "rebajeTeclado", {
-        "firstCorner" : vector(-35, -85.5) * millimeter,
-        "secondCorner" : vector(35, -8.5) * millimeter
+    skCircle(skBiselCam, "anilloCam", {
+        "center" : vector(0, 76) * millimeter,
+        "radius" : 9.0 * millimeter
     });
-    skSolve(skRebajeTeclado);
+    skSolve(skBiselCam);
 
-    extrude(context, id + "extRebajeTeclado", {
-        "entities" : qSketchRegion(id + "skRebajeTeclado"),
+    extrude(context, id + "extBiselCam", {
+        "entities" : qSketchRegion(id + "skBiselCam"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
         "depth" : 0.8 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
+    });
+
+    // 5. B) PANTALLA OLED 1.30'' IIC V2.2 (SH1106) + 2 LEDs LATERALES
+    // Ubicación de pantalla: Y = +28 mm
+    var skOled = newSketchOnPlane(context, id + "skOled", {
+        "sketchPlane" : XY_PLANE
+    });
+    // Ventana pasante activa visible: 34 mm x 19 mm
+    skRectangle(skOled, "ventOled", {
+        "firstCorner" : vector(-17, 18.5) * millimeter,
+        "secondCorner" : vector(17, 37.5) * millimeter
+    });
+    // LED Verde Superior (Acceso permitido)
+    skCircle(skOled, "ledVerde", {
+        "center" : vector(24, 34) * millimeter,
+        "radius" : 1.6 * millimeter
+    });
+    // LED Rojo Inferior (Acceso denegado / Bloqueo)
+    skCircle(skOled, "ledRojo", {
+        "center" : vector(24, 22) * millimeter,
+        "radius" : 1.6 * millimeter
+    });
+    // Orificios traseros para tornillos M2 de fijación del PCB OLED (30.5mm x 28.5mm)
+    skCircle(skOled, "oledM2_1", { "center" : vector(-15.25, 13.75) * millimeter, "radius" : 1.1 * millimeter });
+    skCircle(skOled, "oledM2_2", { "center" : vector(15.25, 13.75) * millimeter,  "radius" : 1.1 * millimeter });
+    skCircle(skOled, "oledM2_3", { "center" : vector(-15.25, 42.25) * millimeter, "radius" : 1.1 * millimeter });
+    skCircle(skOled, "oledM2_4", { "center" : vector(15.25, 42.25) * millimeter,  "radius" : 1.1 * millimeter });
+    skSolve(skOled);
+
+    extrude(context, id + "extOledHoles", {
+        "entities" : qSketchRegion(id + "skOled"),
+        "direction" : vector(0, 0, 1),
+        "endBound" : BoundingType.BLIND,
+        "depth" : esp + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
+    });
+
+    // Marco biselado decorativo del OLED (rebaje frontal de 1.0mm)
+    var skMarcoOled = newSketchOnPlane(context, id + "skMarcoOled", {
+        "sketchPlane" : XY_PLANE
+    });
+    skRectangle(skMarcoOled, "rectMarcoOled", {
+        "firstCorner" : vector(-19, 16.5) * millimeter,
+        "secondCorner" : vector(19, 39.5) * millimeter
+    });
+    skSolve(skMarcoOled);
+
+    extrude(context, id + "extMarcoOled", {
+        "entities" : qSketchRegion(id + "skMarcoOled"),
+        "direction" : vector(0, 0, 1),
+        "endBound" : BoundingType.BLIND,
+        "depth" : 1.0 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
+    });
+
+    // 6. C) TECLADO MATRICIAL 4x4 EMBEBIDO (Y = -62 mm)
+    // Cajera perimetral rebajada de 1.4 mm
+    var skCajeraTeclado = newSketchOnPlane(context, id + "skCajeraTeclado", {
+        "sketchPlane" : XY_PLANE
+    });
+    skRectangle(skCajeraTeclado, "cajeraTeclado", {
+        "firstCorner" : vector(-31, -95) * millimeter,
+        "secondCorner" : vector(31, -29) * millimeter
+    });
+    skSolve(skCajeraTeclado);
+
+    extrude(context, id + "extCajeraTeclado", {
+        "entities" : qSketchRegion(id + "skCajeraTeclado"),
+        "direction" : vector(0, 0, 1),
+        "endBound" : BoundingType.BLIND,
+        "depth" : 1.4 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
+    });
+
+    // 16 Teclas cuadradas táctiles modeladas en sobre-relieve
+    var skTeclas = newSketchOnPlane(context, id + "skTeclas", {
+        "sketchPlane" : XY_PLANE
+    });
+    const xCols = [-20.5, -6.8, 6.8, 20.5];
+    const yFilas = [-37.5, -51.2, -64.9, -78.6];
+
+    for (var c = 0; c < 4; c += 1)
+    {
+        for (var f = 0; f < 4; f += 1)
+        {
+            skRectangle(skTeclas, "tecla_" ~ c ~ "_" ~ f, {
+                "firstCorner" : vector(xCols[c] - 5.5, yFilas[f] - 5.5) * millimeter,
+                "secondCorner" : vector(xCols[c] + 5.5, yFilas[f] + 5.5) * millimeter
+            });
+        }
+    }
+    // Ranura pasacables interior para la cinta de datos
+    skRectangle(skTeclas, "flexPasacables", {
+        "firstCorner" : vector(-12, -90) * millimeter,
+        "secondCorner" : vector(12, -87) * millimeter
+    });
+    skSolve(skTeclas);
+
+    // Ranura pasacables
+    extrude(context, id + "extFlexSlot", {
+        "entities" : qSketchRegion(id + "skTeclas"),
+        "direction" : vector(0, 0, 1),
+        "endBound" : BoundingType.BLIND,
+        "depth" : esp + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
+    });
+
+    // 7. D) RANURA LATERAL IZQUIERDA PARA EL CERROJO (X = -ancho/2)
+    // El cerrojo sobresale por la izquierda a la altura media (Y = -2 mm)
+    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
+    var skRanuraCerrojo = newSketchOnPlane(context, id + "skRanuraCerrojo", {
+        "sketchPlane" : planoLateral
+    });
+    skRectangle(skRanuraCerrojo, "slotCerrojo", {
+        "firstCorner" : vector(-16, esp + 1 * millimeter),
+        "secondCorner" : vector(16, esp + 11 * millimeter)
+    });
+    skSolve(skRanuraCerrojo);
+
+    extrude(context, id + "extSlotCerrojo", {
+        "entities" : qSketchRegion(id + "skRanuraCerrojo"),
+        "direction" : vector(1, 0, 0),
+        "endBound" : BoundingType.BLIND,
+        "depth" : esp + 3 * millimeter,
         "operationType" : NewBodyOperationType.REMOVE,
         "defaultScope" : true
     });
@@ -244,74 +326,73 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
 
 
 // ============================================================================
-// 2. CAJA BASE TRASERA
+// 2. CAJA BASE TRASERA SLIM
 // ============================================================================
 function generarCajaBase(context is Context, id is Id, definition is map)
 {
-    const ancho = 108 * millimeter;
-    const alto = 178 * millimeter;
-    const prof = 28 * millimeter;
+    const ancho = 80 * millimeter;
+    const alto = 240 * millimeter;
+    const profBase = 22 * millimeter;
     const esp = definition.espesorPared;
 
-    // 1. Bloque exterior base
-    var skBase = newSketchOnPlane(context, id + "skBaseCaja", {
+    // 1. Bloque base exterior
+    var skBase = newSketchOnPlane(context, id + "skCajaBase", {
         "sketchPlane" : XY_PLANE
     });
-    skRectangle(skBase, "rectBaseCaja", {
+    skRectangle(skBase, "rectCajaBase", {
         "firstCorner" : vector(-ancho / 2, -alto / 2),
         "secondCorner" : vector(ancho / 2, alto / 2)
     });
     skSolve(skBase);
 
-    extrude(context, id + "extBaseCaja", {
-        "entities" : qSketchRegion(id + "skBaseCaja"),
+    extrude(context, id + "extCajaBase", {
+        "entities" : qSketchRegion(id + "skCajaBase"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "depth" : prof,
+        "depth" : profBase,
         "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Redondeo de las 4 esquinas verticales (R=6mm)
-    var bordesVert = filtrarBordesVerticales(context, qCreatedBy(id + "extBaseCaja", EntityType.EDGE));
+    // 2. Redondeo de las 4 esquinas exteriores (R=8mm)
+    var bordesVert = filtrarBordesVerticales(context, qCreatedBy(id + "extCajaBase", EntityType.EDGE));
     if (!isQueryEmpty(context, bordesVert))
     {
-        opFillet(context, id + "filletCaja", {
+        opFillet(context, id + "filletBase", {
             "entities" : bordesVert,
-            "radius" : 6 * millimeter
+            "radius" : 8 * millimeter
         });
     }
 
-    // 3. Vaciado interior (Cavitad desde Z = esp hacia arriba)
-    var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
-    var skCavidad = newSketchOnPlane(context, id + "skCavidadCaja", {
-        "sketchPlane" : planoCavidad
+    // 3. Vaciado interior (Cavitad)
+    var planoCav = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
+    var skCav = newSketchOnPlane(context, id + "skCavBase", {
+        "sketchPlane" : planoCav
     });
-    skRectangle(skCavidad, "rectCavCaja", {
+    skRectangle(skCav, "rectCavBase", {
         "firstCorner" : vector(-ancho / 2 + esp, -alto / 2 + esp),
         "secondCorner" : vector(ancho / 2 - esp, alto / 2 - esp)
     });
-    skSolve(skCavidad);
+    skSolve(skCav);
 
-    extrude(context, id + "extCavidadCaja", {
-        "entities" : qSketchRegion(id + "skCavidadCaja"),
+    extrude(context, id + "extCavBase", {
+        "entities" : qSketchRegion(id + "skCavBase"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "depth" : prof - esp + 1 * millimeter,
+        "depth" : profBase - esp + 1 * millimeter,
         "operationType" : NewBodyOperationType.REMOVE,
         "defaultScope" : true
     });
 
-    // 4. Salida lateral para el cerrojo (en la pared lateral izquierda X = -ancho/2)
+    // 4. Salida lateral izquierda para el cerrojo (coincidente con la tapa)
     var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
-    var skSalidaCerrojo = newSketchOnPlane(context, id + "skSalidaCerrojo", {
+    var skSalida = newSketchOnPlane(context, id + "skSalidaCerrojo", {
         "sketchPlane" : planoLateral
     });
-    // Ventana para la salida del cerrojo (ancho 13mm en Y, alto 11mm en Z)
-    skRectangle(skSalidaCerrojo, "ranuraCerrojo", {
-        "firstCorner" : vector(-39, esp) * millimeter,
-        "secondCorner" : vector(-26, esp + 11 * millimeter)
+    skRectangle(skSalida, "ranuraSalida", {
+        "firstCorner" : vector(-16, esp + 1 * millimeter),
+        "secondCorner" : vector(16, esp + 11 * millimeter)
     });
-    skSolve(skSalidaCerrojo);
+    skSolve(skSalida);
 
     extrude(context, id + "extSalidaCerrojo", {
         "entities" : qSketchRegion(id + "skSalidaCerrojo"),
@@ -325,19 +406,25 @@ function generarCajaBase(context is Context, id is Id, definition is map)
 
 
 // ============================================================================
-// 3. BARRA CREMALLERA (Cerrojo Móvil — Dientes hacia el Piñón)
+// 3. BARRA CREMALLERA (Pestillo / Cerrojo Móvil)
 // ============================================================================
-function generarBarraCremallera(context is Context, id is Id, definition is map)
+function generarBarraCremallera(context is Context, id is Id, definition is map, enPosicion is boolean)
 {
-    const largo = 85 * millimeter;
+    const largo = 78 * millimeter;
     const ancho = 12 * millimeter;
     const alto = 10 * millimeter;
     const modulo = 1.5 * millimeter;
     const paso = 3.141592 * modulo; // ~4.712 mm
 
-    // 1. Barra sólida base
+    // Plano de inicio: Si es ensamble se ubica saliendo por el lateral izquierdo (X=-55mm, Y=-2mm)
+    var planoInicio = XY_PLANE;
+    if (enPosicion)
+    {
+        planoInicio = plane(vector(-55, -2, 5) * millimeter, vector(0, 0, 1), vector(1, 0, 0));
+    }
+
     var skBarra = newSketchOnPlane(context, id + "skBarra", {
-        "sketchPlane" : XY_PLANE
+        "sketchPlane" : planoInicio
     });
     skRectangle(skBarra, "rectBarra", {
         "firstCorner" : vector(0, 0),
@@ -353,23 +440,22 @@ function generarBarraCremallera(context is Context, id is Id, definition is map)
         "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Dientes de cremallera encarando al piñón (en la cara Y=0, hacia -Y)
-    var skDientes = newSketchOnPlane(context, id + "skDientesCremallera", {
-        "sketchPlane" : XY_PLANE
+    // Dientes de cremallera encarando hacia el motor (en Y = 0 hacia abajo)
+    var skDientes = newSketchOnPlane(context, id + "skDientes", {
+        "sketchPlane" : planoInicio
     });
-
-    for (var j = 0; j < 12; j += 1)
+    for (var j = 0; j < 11; j += 1)
     {
-        const xCentro = 25 * millimeter + j * paso;
+        const xCentro = 22 * millimeter + j * paso;
         skRectangle(skDientes, "diente" ~ j, {
             "firstCorner" : vector(xCentro - 1.5 * millimeter, -0.5 * millimeter),
-            "secondCorner" : vector(xCentro + 1.5 * millimeter, 2.5 * millimeter)
+            "secondCorner" : vector(xCentro + 1.5 * millimeter, 2.4 * millimeter)
         });
     }
     skSolve(skDientes);
 
-    extrude(context, id + "extDientesCremallera", {
-        "entities" : qSketchRegion(id + "skDientesCremallera"),
+    extrude(context, id + "extDientes", {
+        "entities" : qSketchRegion(id + "skDientes"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
         "depth" : alto + 1 * millimeter,
@@ -380,14 +466,14 @@ function generarBarraCremallera(context is Context, id is Id, definition is map)
 
 
 // ============================================================================
-// 4. PIÑÓN MOTOR (Engranaje circular)
+// 4. PIÑÓN DEL MOTOR
 // ============================================================================
 function generarPinonMotor(context is Context, id is Id, definition is map)
 {
     const espesor = 7.0 * millimeter;
     const radioExterior = 12.0 * millimeter;
 
-    // 1. Cilindro base
+    // Cilindro engranaje base
     var skPinon = newSketchOnPlane(context, id + "skPinonBase", {
         "sketchPlane" : XY_PLANE
     });
@@ -405,23 +491,22 @@ function generarPinonMotor(context is Context, id is Id, definition is map)
         "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Orificio para eje motor tipo D (5.4 mm con plano de 0.8 mm)
-    var skEje = newSketchOnPlane(context, id + "skEjeMotor", {
+    // Calce tipo D para eje de motorreductor (5.4 mm)
+    var skEje = newSketchOnPlane(context, id + "skEje", {
         "sketchPlane" : XY_PLANE
     });
     skCircle(skEje, "circEje", {
         "center" : vector(0, 0) * millimeter,
         "radius" : 2.7 * millimeter
     });
-    // Plano antideslizamiento tipo D
-    skRectangle(skEje, "cortePlanoD", {
+    skRectangle(skEje, "corteD", {
         "firstCorner" : vector(1.9, -3.0) * millimeter,
         "secondCorner" : vector(4.0, 3.0) * millimeter
     });
     skSolve(skEje);
 
     extrude(context, id + "extCorteEje", {
-        "entities" : qSketchRegion(id + "skEjeMotor"),
+        "entities" : qSketchRegion(id + "skEje"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
         "depth" : espesor + 1 * millimeter,
