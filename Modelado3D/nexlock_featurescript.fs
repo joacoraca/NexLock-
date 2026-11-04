@@ -45,7 +45,7 @@ export enum TipoPiezaNexLock
 }
 
 // ── DEFINICIÓN DEL CUSTOM FEATURE ──────────────────────────────────────────
-annotation { "Feature Type Name" : "NexLock Gabinete y Mecanismo", "UIHint" : "UIHINT_SHOW_IN_NAVIGATOR" }
+annotation { "Feature Type Name" : "NexLock Gabinete y Mecanismo" }
 export const nexlockGabinete = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
     {
