@@ -1,11 +1,17 @@
-FeatureScript 2440.0;
-import(path : "onshape/std/geometry.fs", version : "2440.0");
+// ============================================================================
+// NexLock — Gabinete y Mecanismo 3D (FeatureScript para Onshape)
+// ============================================================================
+// 
+// ⚠️ IMPORTANTE SOBRE LAS DOS PRIMERAS LÍNEAS DE VERSIÓN:
+// Al crear un nuevo "Feature Studio" en Onshape, el editor escribe automáticamente
+// las 2 primeras líneas con la versión exacta de tu documento.
+// Mantén esas 2 líneas originales que Onshape te generó y pega el resto debajo.
+// ============================================================================
+
+FeatureScript 2400; // <- Si tu Onshape tiene otro número aquí (ej: 2411, 2200), conserva el tuyo
+import(path : "onshape/std/geometry.fs", version : "2400.0"); // <- Conserva tu versión original
 
 /**
- * ============================================================================
- * NexLock — Gabinete y Mecanismo 3D (FeatureScript para Onshape)
- * ============================================================================
- * 
  * Componentes y adaptaciones integradas:
  *  1. Pantalla OLED 1.30'' IIC V2.2 (Controlador SH1106, 128x64):
  *     - Ventana frontal: 32 mm x 18 mm
@@ -46,7 +52,7 @@ export const nexlockGabinete = defineFeature(function(context is Context, id is 
         annotation { "Name" : "Seleccionar Pieza a Generar" }
         definition.pieza is TipoPiezaNexLock;
 
-        annotation { "Name" : "Espesor de Pared", "Default" : 2.6 * millimeter }
+        annotation { "Name" : "Espesor de Pared" }
         isLength(definition.espesorPared, { (millimeter) : [1.5, 2.6, 5.0] } as LengthBoundSpec);
     }
     {
@@ -68,6 +74,22 @@ export const nexlockGabinete = defineFeature(function(context is Context, id is 
         }
     });
 
+// ── FUNCIÓN AUXILIAR: FILTRAR BORDES VERTICALES PARA REDONDEO ──────────────
+function filtrarBordesVerticales(context is Context, queryBordes is Query) returns Query
+{
+    var verticales = [];
+    var worldZ = vector(0, 0, 1);
+    for (var borde in evaluateQuery(context, queryBordes))
+    {
+        var linea = evLine(context, { "edge" : borde });
+        if (parallelVectors(linea.direction, worldZ))
+        {
+            verticales = append(verticales, borde);
+        }
+    }
+    return qUnion(verticales);
+}
+
 
 // ============================================================================
 // 1. TAPA FRONTAL
@@ -79,9 +101,9 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     const prof = 12 * millimeter;
     const esp = definition.espesorPared;
 
-    // 1. Bloque principal
-    var skBase = newSketch(context, id + "skBase", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 1. Bloque exterior base en el plano XY (Z=0)
+    var skBase = newSketchOnPlane(context, id + "skBase", {
+        "sketchPlane" : XY_PLANE
     });
     skRectangle(skBase, "rectBase", {
         "firstCorner" : vector(-ancho / 2, -alto / 2),
@@ -89,22 +111,29 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
     skSolve(skBase);
 
-    opExtrude(context, id + "extBase", {
+    extrude(context, id + "extBase", {
         "entities" : qSketchRegion(id + "skBase"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "endDistance" : prof
+        "depth" : prof,
+        "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Redondeo de las 4 esquinas verticales (R=6mm)
-    opFillet(context, id + "filletEsquinas", {
-        "entities" : qEdgeTopologyFilter(qCreatedBy(id + "extBase", EntityType.EDGE), EdgeTopology.TWO_SIDED),
-        "radius" : 6 * millimeter
-    });
+    // 2. Redondeo de las 4 esquinas exteriores (R=6mm)
+    var bordesVert = filtrarBordesVerticales(context, qCreatedBy(id + "extBase", EntityType.EDGE));
+    if (!isQueryEmpty(context, bordesVert))
+    {
+        opFillet(context, id + "filletEsquinas", {
+            "entities" : bordesVert,
+            "radius" : 6 * millimeter
+        });
+    }
 
     // 3. Vaciado interior (Cavitad)
-    var skCavidad = newSketch(context, id + "skCavidad", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // El vaciado se hace desde Z = esp hacia arriba para dejar la pared frontal sólida de espesor 'esp'
+    var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
+    var skCavidad = newSketchOnPlane(context, id + "skCavidad", {
+        "sketchPlane" : planoCavidad
     });
     skRectangle(skCavidad, "rectCav", {
         "firstCorner" : vector(-ancho / 2 + esp, -alto / 2 + esp),
@@ -112,17 +141,18 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
     skSolve(skCavidad);
 
-    opExtrude(context, id + "extCavidad", {
+    extrude(context, id + "extCavidad", {
         "entities" : qSketchRegion(id + "skCavidad"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : prof - esp
+        "depth" : prof - esp + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 
-    // 4. Perforaciones en el frente (Plano Top Z=0)
-    var skCortes = newSketch(context, id + "skCortes", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 4. Perforaciones en el frente (Plano XY Z=0)
+    var skCortes = newSketchOnPlane(context, id + "skCortes", {
+        "sketchPlane" : XY_PLANE
     });
 
     // A) ESP32-CAM: Lente (diam 9.2mm) y Flash (diam 4.5mm)
@@ -137,7 +167,6 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
 
     // B) PANTALLA OLED 1.30'' IIC V2.2 (Controlador SH1106)
-    // Ubicada en la zona media-alta: Y = 9 mm
     // Ventana visible activa: 32 mm x 18 mm
     skRectangle(skCortes, "ventanaOled", {
         "firstCorner" : vector(-16, 0) * millimeter,
@@ -184,17 +213,18 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
 
     skSolve(skCortes);
 
-    opExtrude(context, id + "extCortes", {
+    extrude(context, id + "extCortes", {
         "entities" : qSketchRegion(id + "skCortes"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : esp + 1 * millimeter
+        "depth" : esp + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 
-    // 5. Rebaje superficial para alojar la lámina del teclado matricial (0.8 mm de prof)
-    var skRebajeTeclado = newSketch(context, id + "skRebajeTeclado", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 5. Rebaje superficial para alojar la lámina del teclado matricial (0.8 mm de prof en Z=0)
+    var skRebajeTeclado = newSketchOnPlane(context, id + "skRebajeTeclado", {
+        "sketchPlane" : XY_PLANE
     });
     skRectangle(skRebajeTeclado, "rebajeTeclado", {
         "firstCorner" : vector(-35, -85.5) * millimeter,
@@ -202,12 +232,13 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
     skSolve(skRebajeTeclado);
 
-    opExtrude(context, id + "extRebajeTeclado", {
+    extrude(context, id + "extRebajeTeclado", {
         "entities" : qSketchRegion(id + "skRebajeTeclado"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : 0.8 * millimeter
+        "depth" : 0.8 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 }
 
@@ -222,9 +253,9 @@ function generarCajaBase(context is Context, id is Id, definition is map)
     const prof = 28 * millimeter;
     const esp = definition.espesorPared;
 
-    // 1. Bloque principal
-    var skBase = newSketch(context, id + "skBaseCaja", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 1. Bloque exterior base
+    var skBase = newSketchOnPlane(context, id + "skBaseCaja", {
+        "sketchPlane" : XY_PLANE
     });
     skRectangle(skBase, "rectBaseCaja", {
         "firstCorner" : vector(-ancho / 2, -alto / 2),
@@ -232,22 +263,28 @@ function generarCajaBase(context is Context, id is Id, definition is map)
     });
     skSolve(skBase);
 
-    opExtrude(context, id + "extBaseCaja", {
+    extrude(context, id + "extBaseCaja", {
         "entities" : qSketchRegion(id + "skBaseCaja"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "endDistance" : prof
+        "depth" : prof,
+        "operationType" : NewBodyOperationType.NEW
     });
 
     // 2. Redondeo de las 4 esquinas verticales (R=6mm)
-    opFillet(context, id + "filletCaja", {
-        "entities" : qEdgeTopologyFilter(qCreatedBy(id + "extBaseCaja", EntityType.EDGE), EdgeTopology.TWO_SIDED),
-        "radius" : 6 * millimeter
-    });
+    var bordesVert = filtrarBordesVerticales(context, qCreatedBy(id + "extBaseCaja", EntityType.EDGE));
+    if (!isQueryEmpty(context, bordesVert))
+    {
+        opFillet(context, id + "filletCaja", {
+            "entities" : bordesVert,
+            "radius" : 6 * millimeter
+        });
+    }
 
-    // 3. Vaciado interior (Cavitad)
-    var skCavidad = newSketch(context, id + "skCavidadCaja", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 3. Vaciado interior (Cavitad desde Z = esp hacia arriba)
+    var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
+    var skCavidad = newSketchOnPlane(context, id + "skCavidadCaja", {
+        "sketchPlane" : planoCavidad
     });
     skRectangle(skCavidad, "rectCavCaja", {
         "firstCorner" : vector(-ancho / 2 + esp, -alto / 2 + esp),
@@ -255,31 +292,34 @@ function generarCajaBase(context is Context, id is Id, definition is map)
     });
     skSolve(skCavidad);
 
-    opExtrude(context, id + "extCavidadCaja", {
+    extrude(context, id + "extCavidadCaja", {
         "entities" : qSketchRegion(id + "skCavidadCaja"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : prof - esp
+        "depth" : prof - esp + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 
-    // 4. Salida lateral para el cerrojo (puerta / marco)
-    // Calado en la pared lateral izquierda (X = -ancho/2)
-    var skSalidaCerrojo = newSketch(context, id + "skSalidaCerrojo", {
-        "sketchPlane" : qCreatedBy(makeId("Right"), EntityType.FACE)
+    // 4. Salida lateral para el cerrojo (en la pared lateral izquierda X = -ancho/2)
+    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
+    var skSalidaCerrojo = newSketchOnPlane(context, id + "skSalidaCerrojo", {
+        "sketchPlane" : planoLateral
     });
-    // Posición del cerrojo: Y=-34 mm, Z=esp a esp+10mm
+    // Ventana para la salida del cerrojo (ancho 13mm en Y, alto 11mm en Z)
     skRectangle(skSalidaCerrojo, "ranuraCerrojo", {
-        "firstCorner" : vector(-39, 4) * millimeter,
-        "secondCorner" : vector(-27, 14) * millimeter
+        "firstCorner" : vector(-39, esp) * millimeter,
+        "secondCorner" : vector(-26, esp + 11 * millimeter)
     });
     skSolve(skSalidaCerrojo);
 
-    opExtrude(context, id + "extSalidaCerrojo", {
+    extrude(context, id + "extSalidaCerrojo", {
         "entities" : qSketchRegion(id + "skSalidaCerrojo"),
-        "direction" : vector(-1, 0, 0),
+        "direction" : vector(1, 0, 0),
+        "endBound" : BoundingType.BLIND,
+        "depth" : esp + 3 * millimeter,
         "operationType" : NewBodyOperationType.REMOVE,
-        "endBound" : BoundingType.THROUGH_ALL
+        "defaultScope" : true
     });
 }
 
@@ -296,8 +336,8 @@ function generarBarraCremallera(context is Context, id is Id, definition is map)
     const paso = 3.141592 * modulo; // ~4.712 mm
 
     // 1. Barra sólida base
-    var skBarra = newSketch(context, id + "skBarra", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    var skBarra = newSketchOnPlane(context, id + "skBarra", {
+        "sketchPlane" : XY_PLANE
     });
     skRectangle(skBarra, "rectBarra", {
         "firstCorner" : vector(0, 0),
@@ -305,42 +345,36 @@ function generarBarraCremallera(context is Context, id is Id, definition is map)
     });
     skSolve(skBarra);
 
-    opExtrude(context, id + "extBarra", {
+    extrude(context, id + "extBarra", {
         "entities" : qSketchRegion(id + "skBarra"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "endDistance" : alto
+        "depth" : alto,
+        "operationType" : NewBodyOperationType.NEW
     });
 
-    // 2. Dientes de cremallera encarando al piñón (en la cara Y=0, hacia abajo -Y)
-    var skDientes = newSketch(context, id + "skDientesCremallera", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    // 2. Dientes de cremallera encarando al piñón (en la cara Y=0, hacia -Y)
+    var skDientes = newSketchOnPlane(context, id + "skDientesCremallera", {
+        "sketchPlane" : XY_PLANE
     });
 
-    // Tallado de 12 dientes trapezoidales/triangulares en Y=0
     for (var j = 0; j < 12; j += 1)
     {
         const xCentro = 25 * millimeter + j * paso;
         skRectangle(skDientes, "diente" ~ j, {
-            "firstCorner" : vector(xCentro - 1.5 * millimeter, -0.2 * millimeter),
-            "secondCorner" : vector(xCentro + 1.5 * millimeter, 2.2 * millimeter)
+            "firstCorner" : vector(xCentro - 1.5 * millimeter, -0.5 * millimeter),
+            "secondCorner" : vector(xCentro + 1.5 * millimeter, 2.5 * millimeter)
         });
     }
     skSolve(skDientes);
 
-    opExtrude(context, id + "extDientesCremallera", {
+    extrude(context, id + "extDientesCremallera", {
         "entities" : qSketchRegion(id + "skDientesCremallera"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : alto + 1 * millimeter
-    });
-
-    // 3. Bisel en la punta (X=0) para traba suave de puerta
-    opChamfer(context, id + "biselPunta", {
-        "entities" : qEdgeTopologyFilter(qCreatedBy(id + "extBarra", EntityType.EDGE), EdgeTopology.TWO_SIDED),
-        "chamferType" : ChamferType.EQUAL_OFFSETS,
-        "width" : 3.0 * millimeter
+        "depth" : alto + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 }
 
@@ -351,13 +385,11 @@ function generarBarraCremallera(context is Context, id is Id, definition is map)
 function generarPinonMotor(context is Context, id is Id, definition is map)
 {
     const espesor = 7.0 * millimeter;
-    const radioPrimitivo = 10.5 * millimeter; // D=21mm (Mod 1.5, 14 dientes)
     const radioExterior = 12.0 * millimeter;
-    const numDientes = 14;
 
     // 1. Cilindro base
-    var skPinon = newSketch(context, id + "skPinonBase", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    var skPinon = newSketchOnPlane(context, id + "skPinonBase", {
+        "sketchPlane" : XY_PLANE
     });
     skCircle(skPinon, "circPinon", {
         "center" : vector(0, 0) * millimeter,
@@ -365,16 +397,17 @@ function generarPinonMotor(context is Context, id is Id, definition is map)
     });
     skSolve(skPinon);
 
-    opExtrude(context, id + "extPinonBase", {
+    extrude(context, id + "extPinonBase", {
         "entities" : qSketchRegion(id + "skPinonBase"),
         "direction" : vector(0, 0, 1),
         "endBound" : BoundingType.BLIND,
-        "endDistance" : espesor
+        "depth" : espesor,
+        "operationType" : NewBodyOperationType.NEW
     });
 
     // 2. Orificio para eje motor tipo D (5.4 mm con plano de 0.8 mm)
-    var skEje = newSketch(context, id + "skEjeMotor", {
-        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+    var skEje = newSketchOnPlane(context, id + "skEjeMotor", {
+        "sketchPlane" : XY_PLANE
     });
     skCircle(skEje, "circEje", {
         "center" : vector(0, 0) * millimeter,
@@ -387,11 +420,12 @@ function generarPinonMotor(context is Context, id is Id, definition is map)
     });
     skSolve(skEje);
 
-    opExtrude(context, id + "extCorteEje", {
+    extrude(context, id + "extCorteEje", {
         "entities" : qSketchRegion(id + "skEjeMotor"),
         "direction" : vector(0, 0, 1),
-        "operationType" : NewBodyOperationType.REMOVE,
         "endBound" : BoundingType.BLIND,
-        "endDistance" : espesor + 1 * millimeter
+        "depth" : espesor + 1 * millimeter,
+        "operationType" : NewBodyOperationType.REMOVE,
+        "defaultScope" : true
     });
 }
