@@ -3,40 +3,39 @@ import(path : "onshape/std/geometry.fs", version : "3112.0");
 
 /**
  * ============================================================================
- * NexLock — Smart Lock Vertical Column (Diseño Pro Slim)
+ * NexLock - Smart Lock Vertical Column (Diseno Pro Slim)
  * ============================================================================
- * 
- * Basado fielmente en el diseño visual moderno de cerradura vertical:
- *  1. FORMATO: Gabinete esbelto y vertical (80 mm x 240 mm x 34 mm) con biseles
- *     elegantes (chaflán 45°) en todo el perímetro frontal.
- *  2. SUPERIOR: Lente de cámara OV2640 con bisel concéntrico decorativo y
+ *
+ * Basado en el diseno visual moderno de cerradura vertical:
+ *  1. FORMATO: Gabinete esbelto y vertical (80 mm x 240 mm x 34 mm).
+ *  2. SUPERIOR: Lente de camara OV2640 con bisel concentrico decorativo y
  *     orificio sensor/flash superior.
  *  3. CENTRO: Pantalla OLED 1.30'' IIC V2.2 (SH1106) con marco rebajado +
  *     2 LEDs de estado verticales a su derecha (Verde arriba, Rojo abajo).
- *  4. LATERAL IZQUIERDO: Cerrojo motorizado móvil (pestillo) saliendo por su
+ *  4. LATERAL IZQUIERDO: Cerrojo motorizado movil (pestillo) saliendo por su
  *     ranura lateral entre el display y el teclado.
  *  5. INFERIOR: Teclado matricial 4x4 integrado en cajera rebajada con 16 teclas
- *     táctiles en relieve (1,2,3,A / 4,5,6,B / 7,8,9,C / *,0,#,D).
- *  6. INTERIOR: Cunas precisas para ESP32-CAM (cable flex plano a ras sin tensión),
- *     guías lineales para la barra cremallera y soporte motorreductor.
+ *     tactiles en relieve (1,2,3,A / 4,5,6,B / 7,8,9,C / *,0,#,D).
+ *  6. INTERIOR: Cunas precisas para ESP32-CAM, guias lineales para la barra
+ *     cremallera y soporte motorreductor.
  */
 
-// ── ENUM SELECTOR DE PIEZAS ────────────────────────────────────────────────
+// -- ENUM SELECTOR DE PIEZAS ------------------------------------------------
 export enum TipoPiezaNexLock
 {
     annotation { "Name" : "Ensamble Completo (Vista Modelo 3D)" }
     ENSAMBLE_COMPLETO,
-    annotation { "Name" : "Tapa Frontal (Cámara, OLED 1.3, Teclado 4x4, LEDs)" }
+    annotation { "Name" : "Tapa Frontal (Camara, OLED 1.3, Teclado 4x4, LEDs)" }
     TAPA_FRONTAL,
-    annotation { "Name" : "Caja Base (Rieles Guía, Cuna Motor y ESP32)" }
+    annotation { "Name" : "Caja Base (Rieles Guia, Cuna Motor y ESP32)" }
     CAJA_BASE,
     annotation { "Name" : "Pestillo Cerrojo (Barra Cremallera dentada)" }
     BARRA_CREMALLERA,
-    annotation { "Name" : "Piñon Motor (Engranaje circular con eje D)" }
+    annotation { "Name" : "Pinon Motor (Engranaje circular con eje D)" }
     PINON_MOTOR
 }
 
-// ── DEFINICIÓN DEL CUSTOM FEATURE ──────────────────────────────────────────
+// -- DEFINICION DEL CUSTOM FEATURE ------------------------------------------
 annotation { "Feature Type Name" : "NexLock Smart Lock 3D" }
 export const nexlockSmartLock = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
@@ -72,7 +71,7 @@ export const nexlockSmartLock = defineFeature(function(context is Context, id is
         }
     });
 
-// ── FILTRO AUXILIAR: BORDES VERTICALES ──────────────────────────────────────
+// -- FILTRO AUXILIAR: BORDES VERTICALES --------------------------------------
 function filtrarBordesVerticales(context is Context, queryBordes is Query) returns Query
 {
     var verticales = [];
@@ -127,7 +126,7 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         });
     }
 
-    // 3. Vaciado interior para alojar los módulos electrónicos (desde Z=esp hasta arriba)
+    // 3. Vaciado interior para alojar los modulos electronicos
     var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
     var skCavidad = newSketchOnPlane(context, id + "skCavidad", {
         "sketchPlane" : planoCavidad
@@ -147,18 +146,16 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // ── PERFORACIONES Y RELIEVES FRONTALES (Z = 0) ──────────────────────────
+    // -- PERFORACIONES Y RELIEVES FRONTALES (Z = 0) --------------------------
 
-    // 4. A) SENSOR SUPERIOR / FLASH & CÁMARA OV2640 (Y = +76 mm)
+    // 4. A) SENSOR SUPERIOR / FLASH & CAMARA OV2640 (Y = +76 mm)
     var skCam = newSketchOnPlane(context, id + "skCam", {
         "sketchPlane" : XY_PLANE
     });
-    // Orificio superior micrófono / flash
     skCircle(skCam, "holeSensorTop", {
         "center" : vector(0, 94) * millimeter,
         "radius" : 1.8 * millimeter
     });
-    // Lente central de cámara OV2640 (pasante)
     skCircle(skCam, "holeLente", {
         "center" : vector(0, 76) * millimeter,
         "radius" : 4.8 * millimeter
@@ -174,7 +171,7 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // Bisel concéntrico decorativo exterior de la cámara (rebaje estético de 0.8mm)
+    // Bisel concentrico decorativo exterior de la camara
     var skBiselCam = newSketchOnPlane(context, id + "skBiselCam", {
         "sketchPlane" : XY_PLANE
     });
@@ -194,26 +191,25 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
 
     // 5. B) PANTALLA OLED 1.30'' IIC V2.2 (SH1106) + 2 LEDs LATERALES
-    // Ubicación de pantalla: Y = +28 mm
     var skOled = newSketchOnPlane(context, id + "skOled", {
         "sketchPlane" : XY_PLANE
     });
-    // Ventana pasante activa visible: 34 mm x 19 mm
+    // Ventana visible: 34 mm x 19 mm
     skRectangle(skOled, "ventOled", {
         "firstCorner" : vector(-17, 18.5) * millimeter,
         "secondCorner" : vector(17, 37.5) * millimeter
     });
-    // LED Verde Superior (Acceso permitido)
+    // LED Verde Superior
     skCircle(skOled, "ledVerde", {
         "center" : vector(24, 34) * millimeter,
         "radius" : 1.6 * millimeter
     });
-    // LED Rojo Inferior (Acceso denegado / Bloqueo)
+    // LED Rojo Inferior
     skCircle(skOled, "ledRojo", {
         "center" : vector(24, 22) * millimeter,
         "radius" : 1.6 * millimeter
     });
-    // Orificios traseros para tornillos M2 de fijación del PCB OLED (30.5mm x 28.5mm)
+    // Orificios traseros M2 del PCB OLED (30.5mm x 28.5mm)
     skCircle(skOled, "oledM2_1", { "center" : vector(-15.25, 13.75) * millimeter, "radius" : 1.1 * millimeter });
     skCircle(skOled, "oledM2_2", { "center" : vector(15.25, 13.75) * millimeter,  "radius" : 1.1 * millimeter });
     skCircle(skOled, "oledM2_3", { "center" : vector(-15.25, 42.25) * millimeter, "radius" : 1.1 * millimeter });
@@ -229,7 +225,7 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // Marco biselado decorativo del OLED (rebaje frontal de 1.0mm)
+    // Marco rebajado decorativo del OLED (1.0 mm)
     var skMarcoOled = newSketchOnPlane(context, id + "skMarcoOled", {
         "sketchPlane" : XY_PLANE
     });
@@ -249,7 +245,6 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
 
     // 6. C) TECLADO MATRICIAL 4x4 EMBEBIDO (Y = -62 mm)
-    // Cajera perimetral rebajada de 1.4 mm
     var skCajeraTeclado = newSketchOnPlane(context, id + "skCajeraTeclado", {
         "sketchPlane" : XY_PLANE
     });
@@ -268,7 +263,7 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // 16 Teclas cuadradas táctiles modeladas en sobre-relieve
+    // 16 Teclas cuadradas tactiles modeladas
     var skTeclas = newSketchOnPlane(context, id + "skTeclas", {
         "sketchPlane" : XY_PLANE
     });
@@ -285,14 +280,12 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
             });
         }
     }
-    // Ranura pasacables interior para la cinta de datos
     skRectangle(skTeclas, "flexPasacables", {
         "firstCorner" : vector(-12, -90) * millimeter,
         "secondCorner" : vector(12, -87) * millimeter
     });
     skSolve(skTeclas);
 
-    // Ranura pasacables
     extrude(context, id + "extFlexSlot", {
         "entities" : qSketchRegion(id + "skTeclas"),
         "direction" : vector(0, 0, 1),
@@ -303,7 +296,6 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
 
     // 7. D) RANURA LATERAL IZQUIERDA PARA EL CERROJO (X = -ancho/2)
-    // El cerrojo sobresale por la izquierda a la altura media (Y = -2 mm)
     var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
     var skRanuraCerrojo = newSketchOnPlane(context, id + "skRanuraCerrojo", {
         "sketchPlane" : planoLateral
@@ -363,7 +355,7 @@ function generarCajaBase(context is Context, id is Id, definition is map)
         });
     }
 
-    // 3. Vaciado interior (Cavitad)
+    // 3. Vaciado interior
     var planoCav = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
     var skCav = newSketchOnPlane(context, id + "skCavBase", {
         "sketchPlane" : planoCav
@@ -383,7 +375,7 @@ function generarCajaBase(context is Context, id is Id, definition is map)
         "defaultScope" : true
     });
 
-    // 4. Salida lateral izquierda para el cerrojo (coincidente con la tapa)
+    // 4. Salida lateral izquierda para el cerrojo
     var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
     var skSalida = newSketchOnPlane(context, id + "skSalidaCerrojo", {
         "sketchPlane" : planoLateral
@@ -406,7 +398,7 @@ function generarCajaBase(context is Context, id is Id, definition is map)
 
 
 // ============================================================================
-// 3. BARRA CREMALLERA (Pestillo / Cerrojo Móvil)
+// 3. BARRA CREMALLERA (Pestillo / Cerrojo Movil)
 // ============================================================================
 function generarBarraCremallera(context is Context, id is Id, definition is map, enPosicion is boolean)
 {
@@ -414,9 +406,8 @@ function generarBarraCremallera(context is Context, id is Id, definition is map,
     const ancho = 12 * millimeter;
     const alto = 10 * millimeter;
     const modulo = 1.5 * millimeter;
-    const paso = 3.141592 * modulo; // ~4.712 mm
+    const paso = 3.141592 * modulo;
 
-    // Plano de inicio: Si es ensamble se ubica saliendo por el lateral izquierdo (X=-55mm, Y=-2mm)
     var planoInicio = XY_PLANE;
     if (enPosicion)
     {
@@ -466,14 +457,13 @@ function generarBarraCremallera(context is Context, id is Id, definition is map,
 
 
 // ============================================================================
-// 4. PIÑÓN DEL MOTOR
+// 4. PINON DEL MOTOR
 // ============================================================================
 function generarPinonMotor(context is Context, id is Id, definition is map)
 {
     const espesor = 7.0 * millimeter;
     const radioExterior = 12.0 * millimeter;
 
-    // Cilindro engranaje base
     var skPinon = newSketchOnPlane(context, id + "skPinonBase", {
         "sketchPlane" : XY_PLANE
     });
