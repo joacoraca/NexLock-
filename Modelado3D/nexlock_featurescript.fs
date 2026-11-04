@@ -127,7 +127,7 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     }
 
     // 3. Vaciado interior para alojar los modulos electronicos
-    var planoCavidad = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
+    var planoCavidad = plane(vector(0 * millimeter, 0 * millimeter, esp), vector(0, 0, 1), vector(1, 0, 0));
     var skCavidad = newSketchOnPlane(context, id + "skCavidad", {
         "sketchPlane" : planoCavidad
     });
@@ -296,13 +296,13 @@ function generarTapaFrontal(context is Context, id is Id, definition is map)
     });
 
     // 7. D) RANURA LATERAL IZQUIERDA PARA EL CERROJO (X = -ancho/2)
-    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
+    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0 * millimeter, 0 * millimeter), vector(-1, 0, 0), vector(0, 1, 0));
     var skRanuraCerrojo = newSketchOnPlane(context, id + "skRanuraCerrojo", {
         "sketchPlane" : planoLateral
     });
     skRectangle(skRanuraCerrojo, "slotCerrojo", {
-        "firstCorner" : vector(-16, esp + 1 * millimeter),
-        "secondCorner" : vector(16, esp + 11 * millimeter)
+        "firstCorner" : vector(-16 * millimeter, esp + 1 * millimeter),
+        "secondCorner" : vector(16 * millimeter, esp + 11 * millimeter)
     });
     skSolve(skRanuraCerrojo);
 
@@ -356,7 +356,7 @@ function generarCajaBase(context is Context, id is Id, definition is map)
     }
 
     // 3. Vaciado interior
-    var planoCav = plane(vector(0, 0, esp), vector(0, 0, 1), vector(1, 0, 0));
+    var planoCav = plane(vector(0 * millimeter, 0 * millimeter, esp), vector(0, 0, 1), vector(1, 0, 0));
     var skCav = newSketchOnPlane(context, id + "skCavBase", {
         "sketchPlane" : planoCav
     });
@@ -376,13 +376,13 @@ function generarCajaBase(context is Context, id is Id, definition is map)
     });
 
     // 4. Salida lateral izquierda para el cerrojo
-    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0, 0), vector(-1, 0, 0), vector(0, 1, 0));
+    var planoLateral = plane(vector(-ancho / 2 - 1 * millimeter, 0 * millimeter, 0 * millimeter), vector(-1, 0, 0), vector(0, 1, 0));
     var skSalida = newSketchOnPlane(context, id + "skSalidaCerrojo", {
         "sketchPlane" : planoLateral
     });
     skRectangle(skSalida, "ranuraSalida", {
-        "firstCorner" : vector(-16, esp + 1 * millimeter),
-        "secondCorner" : vector(16, esp + 11 * millimeter)
+        "firstCorner" : vector(-16 * millimeter, esp + 1 * millimeter),
+        "secondCorner" : vector(16 * millimeter, esp + 11 * millimeter)
     });
     skSolve(skSalida);
 
@@ -418,7 +418,7 @@ function generarBarraCremallera(context is Context, id is Id, definition is map,
         "sketchPlane" : planoInicio
     });
     skRectangle(skBarra, "rectBarra", {
-        "firstCorner" : vector(0, 0),
+        "firstCorner" : vector(0, 0) * millimeter,
         "secondCorner" : vector(largo, ancho)
     });
     skSolve(skBarra);
