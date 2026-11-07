@@ -198,7 +198,6 @@
               <span class="m-chip-badge">2FA ACTIVO</span>
             </div>
             <div class="m-hero-center">
-              <span class="m-hero-currency">$</span>
               <span class="m-hero-main-number" id="m-hero-total">0</span>
               <span class="m-hero-sublabel">Accesos totales auditados</span>
             </div>
@@ -478,14 +477,14 @@
         <div class="two-col">
           <div class="card">
             <div class="card-header"><h2>Agregar usuario</h2></div>
-            <div class="form-wrap">
+            <form class="form-wrap" id="form-add-user" autocomplete="off" onsubmit="return false;" data-form-type="other">
               <div class="field-group">
-                <label>Nombre</label>
-                <input type="text" id="u-name" placeholder="Ej: Juan García" maxlength="50"/>
+                <label for="u-name">Nombre</label>
+                <input type="text" id="u-name" name="member_display_name" placeholder="Ej: Juan García" maxlength="50" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other"/>
               </div>
               <div class="field-group">
-                <label>PIN <span class="hint">4 a 8 dígitos</span></label>
-                <input type="password" id="u-pin" placeholder="••••" maxlength="8" inputmode="numeric"/>
+                <label for="u-pin">PIN <span class="hint">4 a 8 dígitos numéricos</span></label>
+                <input type="text" id="u-pin" name="door_keypad_pin" placeholder="••••" maxlength="8" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other"/>
               </div>
               <div class="field-group">
                 <label>Rol</label>
@@ -507,9 +506,9 @@
                   </div>
                 </div>
               </div>
-              <button class="btn-primary" id="btn-add">Crear usuario</button>
+              <button type="button" class="btn-primary" id="btn-add">Crear usuario</button>
               <p class="form-feedback" id="form-msg"></p>
-            </div>
+            </form>
           </div>
           <div class="card">
             <div class="card-header">

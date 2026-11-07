@@ -501,19 +501,23 @@ function initUsers() {
       const hasFace = !!u.faceEnrolled;
       return `
         <div class="user-item" id="u-${d.id}">
-          <div class="avatar ${hasFace ? 'has-face' : ''}" data-face-id="${hasFace ? d.id : ''}"
-               data-face-key="${u.faceUpdatedAt?.toMillis?.() ?? ''}">${esc(initials(u.name))}</div>
-          <div class="user-details">
-            <div class="user-name">${esc(u.name)}</div>
-            <div class="user-tags">
-              <span class="user-role ${u.role === 'admin' ? 'admin' : 'user'}">${u.role === 'admin' ? 'Administrador' : 'Usuario'}</span>
-              <span class="chip ${hasFace ? 'ok' : 'warn'}">${hasFace ? 'PIN + Rostro' : 'Falta rostro'}</span>
+          <div class="user-main-info">
+            <div class="avatar ${hasFace ? 'has-face' : ''}" data-face-id="${hasFace ? d.id : ''}"
+                 data-face-key="${u.faceUpdatedAt?.toMillis?.() ?? ''}">${esc(initials(u.name))}</div>
+            <div class="user-details">
+              <div class="user-name">${esc(u.name)}</div>
+              <div class="user-tags">
+                <span class="user-role ${u.role === 'admin' ? 'admin' : 'user'}">${u.role === 'admin' ? 'Administrador' : 'Usuario'}</span>
+                <span class="chip ${hasFace ? 'ok' : 'warn'}">${hasFace ? 'PIN + Rostro' : 'Falta rostro'}</span>
+              </div>
             </div>
           </div>
-          <button class="btn-ghost" data-action="face" data-id="${d.id}" data-name="${esc(u.name)}">
-            ${hasFace ? 'Actualizar rostro' : 'Registrar rostro'}
-          </button>
-          <button class="btn-del" data-action="delete" data-id="${d.id}">Eliminar</button>
+          <div class="user-actions">
+            <button class="btn-ghost" data-action="face" data-id="${d.id}" data-name="${esc(u.name)}">
+              ${hasFace ? 'Actualizar rostro' : 'Registrar rostro'}
+            </button>
+            <button class="btn-del" data-action="delete" data-id="${d.id}">Eliminar</button>
+          </div>
         </div>`;
     }).join('');
 
@@ -582,6 +586,11 @@ $('#btn-face-clear').addEventListener('click', () => { pendingFace = null; rende
 
 // CREAR USUARIO
 
+
+// Solo permitir dígitos en el campo PIN
+$('#u-pin')?.addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
 $('#btn-add').addEventListener('click', async () => {
   const name = $('#u-name').value.trim();
   const pin  = $('#u-pin').value.trim();
