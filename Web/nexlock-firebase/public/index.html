@@ -556,6 +556,21 @@
         <canvas id="face-overlay"></canvas>
         <div class="cam-guide" aria-hidden="true"></div>
         <img id="face-shot" alt="Rostro capturado"/>
+        <div class="cam-mobile-prompt" id="face-mobile-prompt" hidden>
+          <div class="cam-mobile-prompt-content">
+            <div class="cam-mobile-icon">📸</div>
+            <p class="cam-mobile-text">Elegí cómo tomar la foto de referencia:</p>
+            <button type="button" class="btn-primary btn-cam-option" id="face-btn-native">
+              📷 Tomar foto (Cámara del celular)
+            </button>
+            <button type="button" class="btn-secondary btn-cam-option" id="face-btn-live">
+              🎥 Abrir cámara en vivo
+            </button>
+            <button type="button" class="btn-link btn-cam-option" id="face-btn-gallery">
+              📁 Elegir de la galería
+            </button>
+          </div>
+        </div>
       </div>
       <p class="cam-status" id="face-status">Iniciando cámara…</p>
       <ul class="cam-tips">
@@ -569,6 +584,7 @@
           <label class="cam-auto"><input type="checkbox" id="face-auto" checked/> Captura automática</label>
           <button type="button" class="btn-link" id="face-upload">Subir foto</button>
           <input type="file" id="face-file" accept="image/*" hidden/>
+          <input type="file" id="face-native-cam" accept="image/*" capture="user" hidden/>
         </div>
         <div class="cam-actions-right">
           <button type="button" class="btn-secondary" id="face-retake" hidden>Repetir</button>
