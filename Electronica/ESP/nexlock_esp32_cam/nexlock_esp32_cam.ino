@@ -132,11 +132,15 @@ void setup() {
   Serial.println("[CAM] Conectando a red WiFi...");
   conectarWiFiRed(redSeleccionada);
 
-  Serial.println("[CAM] Autenticando en Firebase...");
-  if (firebaseLogin()) {
-    Serial.println("[CAM] Autenticado en Firebase exitosamente ✓");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("[CAM] Autenticando en Firebase...");
+    if (firebaseLogin()) {
+      Serial.println("[CAM] Autenticado en Firebase exitosamente ✓");
+    } else {
+      Serial.println("[CAM] Advertencia: Error en login de Firebase Auth");
+    }
   } else {
-    Serial.println("[CAM] Advertencia: Error en login de Firebase Auth");
+    Serial.println("[CAM] Sin conexion WiFi al iniciar. Esperando comandos o reintento...");
   }
 
   // Avisar al ESP32 central que la cámara está viva y lista
@@ -153,9 +157,13 @@ void setup() {
 // LOOP PRINCIPAL
 // ============================================================================
 void loop() {
-  // Mantener WiFi
+  // Mantener WiFi (reintento periódico cada 25s para no bloquear la escucha UART)
+  static unsigned long lastWifiRetryCam = 0;
   if (WiFi.status() != WL_CONNECTED) {
-    conectarWiFi();
+    if (millis() - lastWifiRetryCam >= 25000 || lastWifiRetryCam == 0) {
+      lastWifiRetryCam = millis();
+      conectarWiFi();
+    }
   }
 
   // Escuchar comandos del ESP32 central
@@ -467,7 +475,12 @@ void conectarWiFiRed(int indiceRed) {
 
   int intentos = 0;
   while (WiFi.status() != WL_CONNECTED && intentos < 30) {
-    delay(400);
+    // Si llega un comando UART del ESP32 central (ej: NL,WIFI,x o NL,PING), abortar espera para procesarlo
+    if (Serial.available()) {
+      Serial.println("\n[CAM] UART entrante durante espera WiFi, cancelando espera.");
+      break;
+    }
+    delay(250);
     intentos++;
     Serial.print(".");
   }

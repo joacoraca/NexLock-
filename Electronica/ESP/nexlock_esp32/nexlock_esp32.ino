@@ -106,7 +106,7 @@ struct FaceVerdict {
 
 // ── Prototipos ──────────────────────────────────────────────────────────────
 void   conectarWiFi();
-void   conectarWiFiRed(int indiceRed);
+void   conectarWiFiRed(int indiceRed, bool permitirCancelarConD = true);
 bool   firebaseLogin();
 String getAuthHeader();
 String sha256Hash(const String& input);
@@ -184,12 +184,32 @@ void setup() {
   if (redSeleccionada < 0 || redSeleccionada > 3) redSeleccionada = 1;
 
   // Conectar a Internet con la red seleccionada
-  conectarWiFiRed(redSeleccionada);
-  firebaseLogin();
+  conectarWiFiRed(redSeleccionada, true);
 
-  if (WiFi.status() == WL_CONNECTED && oledOk) {
-    oledMostrarWiFiOk(WiFi.localIP().toString());
-    delay(1200);
+  if (enMenuWiFi) {
+    Serial.println("[NexLock] Tecla 'D' presionada en inicio -> Menu WiFi activo");
+    return;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    firebaseLogin();
+    if (oledOk) {
+      oledMostrarWiFiOk(WiFi.localIP().toString());
+      delay(1200);
+    }
+  } else {
+    Serial.println("[NexLock] Advertencia: No conectado a WiFi al inicio. Pulsa 'D' para cambiar red.");
+    if (oledOk) {
+      display.clearDisplay();
+      oledHeader("Sin WiFi");
+      display.setCursor(0, 20);
+      display.setTextSize(1);
+      display.println("Red no encontrada.");
+      display.println("\nPresiona [D] para");
+      display.println("cambiar red.");
+      display.display();
+      delay(1500);
+    }
   }
 
   // Notificar a la cámara el índice de red actual
@@ -218,9 +238,17 @@ void setup() {
 // LOOP PRINCIPAL
 // ============================================================================
 void loop() {
-  // 1. Mantener WiFi conectado (solo fuera del menú)
+  // 1. Mantener WiFi conectado (reintento periódico no bloqueante cada 25 segundos)
+  static unsigned long lastWifiRetry = 0;
   if (WiFi.status() != WL_CONNECTED && !enMenuWiFi) {
-    conectarWiFiRed(redSeleccionada);
+    if (millis() - lastWifiRetry >= 25000 || lastWifiRetry == 0) {
+      lastWifiRetry = millis();
+      conectarWiFiRed(redSeleccionada, true);
+      if (enMenuWiFi) return;
+      if (WiFi.status() == WL_CONNECTED) {
+        firebaseLogin();
+      }
+    }
   }
 
   // 2. Procesar mensajes asíncronos del ESP32-CAM (ej: arranque inicial o PONG)
@@ -278,7 +306,7 @@ void loop() {
         display.display();
       }
 
-      conectarWiFiRed(redSeleccionada);
+      conectarWiFiRed(redSeleccionada, false);
 
       if (WiFi.status() == WL_CONNECTED) {
         firebaseLogin();
@@ -338,6 +366,16 @@ void loop() {
       tonoError();
       pinIngresado = "";
       delay(1500);
+      oledMostrarEnEspera();
+      return;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("\n[Acceso] DENEGADO: Sin conexion WiFi.");
+      oledMostrarAccesoDenegado("Sin conexion");
+      tonoError();
+      pinIngresado = "";
+      delay(2000);
       oledMostrarEnEspera();
       return;
     }
@@ -532,7 +570,7 @@ void tonoExito() {
 // CONECTIVIDAD & FIREBASE (REST API)
 // ============================================================================
 
-void conectarWiFiRed(int indiceRed) {
+void conectarWiFiRed(int indiceRed, bool permitirCancelarConD) {
   if (indiceRed < 0 || indiceRed > 3) indiceRed = 1;
   const WiFiRed& red = REDES_WIFI[indiceRed];
 
@@ -547,11 +585,27 @@ void conectarWiFiRed(int indiceRed) {
     WiFi.begin(red.ssid, red.password);
   }
 
-  int intentos = 0;
-  while (WiFi.status() != WL_CONNECTED && intentos < 30) {
-    delay(350);
+  // Esperar hasta ~8 segundos (16 iteraciones de 500ms)
+  // Dividido en sub-intervalos de 50ms para leer el teclado en tiempo real
+  for (int intento = 0; intento < 16; intento++) {
+    for (int sub = 0; sub < 10; sub++) {
+      if (permitirCancelarConD && !enMenuWiFi) {
+        char k = keypad.getKey();
+        if (k == 'D') {
+          Serial.println("\n[WiFi] Cancelado por usuario con tecla 'D' -> Abriendo menu de WiFi");
+          beepCorto(1800, 40);
+          WiFi.disconnect(true);
+          enMenuWiFi = true;
+          pinIngresado = "";
+          oledMostrarMenuWiFi();
+          return;
+        }
+      }
+      if (WiFi.status() == WL_CONNECTED) break;
+      delay(50);
+    }
+    if (WiFi.status() == WL_CONNECTED) break;
     Serial.print(".");
-    intentos++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -562,7 +616,7 @@ void conectarWiFiRed(int indiceRed) {
 }
 
 void conectarWiFi() {
-  conectarWiFiRed(redSeleccionada);
+  conectarWiFiRed(redSeleccionada, true);
 }
 
 // Login con cuenta de dispositivo para obtener ID Token de Firestore
