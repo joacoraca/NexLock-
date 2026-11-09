@@ -545,25 +545,36 @@ void abrirCerradura() {
   Serial.println("[Actuador] Cerradura bloqueada nuevamente.");
 }
 
-void beepCorto(int frec, int dur) {
+// Emite un tono seguro que funciona tanto en buzzers activos como pasivos
+void emitirTono(int frec, int dur) {
   tone(PIN_BUZZER, frec, dur);
+  delay(dur);
+  noTone(PIN_BUZZER);
+  digitalWrite(PIN_BUZZER, LOW);
 }
 
+void beepCorto(int frec, int dur) {
+  emitirTono(frec, dur);
+}
+
+// Sonido de Acceso Denegado / Error: 2 tonos graves descendentes
 void tonoError() {
   digitalWrite(PIN_LED_RED, HIGH);
-  tone(PIN_BUZZER, 400, 300);
-  delay(350);
-  tone(PIN_BUZZER, 300, 400);
-  delay(400);
+  emitirTono(450, 220);
+  delay(80);
+  emitirTono(300, 380);
   digitalWrite(PIN_LED_RED, LOW);
 }
 
+// Sonido de Acceso Permitido / Éxito: 3 tonos agudos ascendentes (triunfales)
 void tonoExito() {
-  tone(PIN_BUZZER, 1800, 100);
-  delay(120);
-  tone(PIN_BUZZER, 2400, 150);
-  delay(160);
-  tone(PIN_BUZZER, 3000, 250);
+  digitalWrite(PIN_LED_GREEN, HIGH);
+  emitirTono(1800, 90);
+  delay(40);
+  emitirTono(2400, 110);
+  delay(40);
+  emitirTono(3200, 220);
+  digitalWrite(PIN_LED_GREEN, LOW);
 }
 
 // ============================================================================
