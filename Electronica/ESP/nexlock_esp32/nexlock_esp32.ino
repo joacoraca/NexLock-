@@ -115,7 +115,7 @@ FaceVerdict solicitarVerificacionFacial(const String& userId, uint32_t timeoutMs
 void   guardarLog(const String& result, const String& userId, const String& userName,
                   const String& pinResult, const String& faceResult, float faceConfidence);
 void   enviarHeartbeat();
-void   pingCamara();
+void   pingCamara(bool esperarRespuesta = false);
 void   abrirCerradura();
 void   beepCorto(int frec = 2000, int dur = 100);
 void   tonoError();
@@ -177,6 +177,8 @@ void setup() {
 
   // Inicializar UART con ESP32-CAM
   CamSerial.begin(115200, SERIAL_8N1, CAM_RX, CAM_TX);
+  CamSerial.setTimeout(30); // Evitar bloqueos largos si hay bytes huerfanos
+  keypad.setDebounceTime(20);
   Serial.println("[NexLock] UART hacia ESP32-CAM inicializado (RX:19, TX:5)");
 
   // Cargar red WiFi guardada en memoria no volátil (NVS)
@@ -216,8 +218,8 @@ void setup() {
   // Notificar a la cámara el índice de red actual
   CamSerial.printf("NL,WIFI,%d\n", redSeleccionada + 1);
 
-  // Comprobar estado de la cámara
-  pingCamara();
+  // Comprobar estado de la cámara (espera corta solo al arrancar)
+  pingCamara(true);
   if (camOnline) {
     Serial.println("[ESP32-CAM] Camara en linea! Firmware: " + camFwVersion);
   } else {
@@ -231,6 +233,9 @@ void setup() {
   Serial.println("  Presiona D para cambiar red WiFi.");
   Serial.println("=============================================");
 
+  // Inicializar temporizadores para no bloquear al ingresar al loop
+  lastHeartbeat = millis();
+
   // Mostrar pantalla de espera lista para recibir PIN
   oledMostrarEnEspera();
 }
@@ -239,10 +244,10 @@ void setup() {
 // LOOP PRINCIPAL
 // ============================================================================
 void loop() {
-  // 1. Mantener WiFi conectado (reintento periódico no bloqueante cada 25 segundos)
-  static unsigned long lastWifiRetry = 0;
+  // 1. Mantener WiFi conectado (reintento periódico cada 25s, no bloquea al inicio)
+  static unsigned long lastWifiRetry = millis();
   if (WiFi.status() != WL_CONNECTED && !enMenuWiFi) {
-    if (millis() - lastWifiRetry >= 25000 || lastWifiRetry == 0) {
+    if (millis() - lastWifiRetry >= 25000) {
       lastWifiRetry = millis();
       conectarWiFiRed(redSeleccionada, true);
       if (enMenuWiFi) return;
@@ -273,10 +278,10 @@ void loop() {
     }
   }
 
-  // 3. Heartbeat periódico a Firestore (cada 60 segundos)
-  if (!enMenuWiFi && (millis() - lastHeartbeat >= 60000 || lastHeartbeat == 0)) {
+  // 3. Heartbeat periódico a Firestore (cada 60s, solo cuando nadie está escribiendo un PIN)
+  if (!enMenuWiFi && pinIngresado.length() == 0 && (millis() - lastHeartbeat >= 60000)) {
     lastHeartbeat = millis();
-    pingCamara();
+    pingCamara(false); // Ping asíncrono (0ms, no bloquea)
     enviarHeartbeat();
   }
 
@@ -359,7 +364,7 @@ void loop() {
     Serial.println("\n[Teclado] PIN borrado.");
     oledMostrarEnEspera();
     digitalWrite(PIN_LED_RED, HIGH);
-    delay(100);
+    emitirTono(1200, 35); // Feedback sonoro inmediato al borrar
     digitalWrite(PIN_LED_RED, LOW);
 
   } else if (key == '#') {
@@ -459,13 +464,15 @@ void loop() {
 // COMUNICACIÓN CON ESP32-CAM (UART PROTOCOLO NL)
 // ============================================================================
 
-void pingCamara() {
+void pingCamara(bool esperarRespuesta) {
   while (CamSerial.available()) CamSerial.read(); // limpiar buffer
   CamSerial.println("NL,PING");
 
+  if (!esperarRespuesta) return; // Asíncrono: no bloquea el loop en lo absoluto
+
   uint32_t t0 = millis();
   camOnline = false;
-  while (millis() - t0 < 1500) {
+  while (millis() - t0 < 800) {
     if (CamSerial.available()) {
       String line = CamSerial.readStringUntil('\n');
       line.trim();
