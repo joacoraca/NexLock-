@@ -257,6 +257,8 @@ void verificarUsuarioContraFacePP(const String& userId) {
     Serial.printf("NL,RESULT,%s,error,-1.0\n", userId.c_str());
     return;
   }
+  // Notificar al ESP32 central para emitir el sonido de obturador/cámara en tiempo real
+  Serial.println("NL,SNAP");
   Serial.printf("[CAM] Frame capturado con exito (%d bytes JPEG) ✓\n", fb->len);
 
   // 3. Preparar petición multipart/form-data a Face++ Compare

@@ -120,6 +120,7 @@ void   abrirCerradura();
 void   beepCorto(int frec = 2000, int dur = 100);
 void   tonoError();
 void   tonoExito();
+void   tonoFoto();
 
 // Prototipos UI OLED
 void   oledHeader(const char* title);
@@ -264,6 +265,8 @@ void loop() {
       } else if (line.startsWith("NL,PONG,")) {
         camFwVersion = line.substring(8);
         camOnline = true;
+      } else if (line == "NL,SNAP") {
+        tonoFoto();
       } else {
         Serial.println("[ESP32-CAM] " + line);
       }
@@ -496,6 +499,9 @@ FaceVerdict solicitarVerificacionFacial(const String& userId, uint32_t timeoutMs
         if (buffer.length() > 0) {
           if (buffer.startsWith("NL,BUSY,")) {
             Serial.println("[ESP32-CAM] Procesando imagen y consultando Face++...");
+          } else if (buffer == "NL,SNAP") {
+            Serial.println("[ESP32-CAM] ¡Foto capturada! Sonido de obturador.");
+            tonoFoto();
           } else if (buffer.startsWith("NL,RESULT,")) {
             // Formato esperado: NL,RESULT,<userId>,<result>,<confidence>
             int idx1 = buffer.indexOf(',', 10);
@@ -575,6 +581,13 @@ void tonoExito() {
   delay(40);
   emitirTono(3200, 220);
   digitalWrite(PIN_LED_GREEN, LOW);
+}
+
+// Sonido de obturador de cámara ("clic-clac") al capturar foto en el ESP32-CAM
+void tonoFoto() {
+  emitirTono(2800, 25);
+  delay(35);
+  emitirTono(1900, 40);
 }
 
 // ============================================================================
