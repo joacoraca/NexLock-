@@ -363,27 +363,31 @@ void loop() {
     pinIngresado = "";
     Serial.println("\n[Teclado] PIN borrado.");
     oledMostrarEnEspera();
-    digitalWrite(PIN_LED_RED, HIGH);
     emitirTono(1200, 35); // Feedback sonoro inmediato al borrar
-    digitalWrite(PIN_LED_RED, LOW);
 
   } else if (key == '#') {
     if (pinIngresado.length() < 4) {
       Serial.println("\n[Teclado] PIN muy corto (minimo 4 digitos).");
+      digitalWrite(PIN_LED_GREEN, LOW);
+      digitalWrite(PIN_LED_RED, HIGH); // LED Rojo encendido (NO habilita)
       oledMostrarAccesoDenegado("PIN muy corto");
       tonoError();
       pinIngresado = "";
       delay(1500);
+      digitalWrite(PIN_LED_RED, LOW);
       oledMostrarEnEspera();
       return;
     }
 
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("\n[Acceso] DENEGADO: Sin conexion WiFi.");
+      digitalWrite(PIN_LED_GREEN, LOW);
+      digitalWrite(PIN_LED_RED, HIGH); // LED Rojo encendido (NO habilita)
       oledMostrarAccesoDenegado("Sin conexion");
       tonoError();
       pinIngresado = "";
       delay(2000);
+      digitalWrite(PIN_LED_RED, LOW);
       oledMostrarEnEspera();
       return;
     }
@@ -399,10 +403,13 @@ void loop() {
 
     if (!pinValido) {
       Serial.println("[Acceso] DENEGADO: PIN incorrecto.");
+      digitalWrite(PIN_LED_GREEN, LOW);
+      digitalWrite(PIN_LED_RED, HIGH); // LED Rojo encendido (NO habilita)
       oledMostrarAccesoDenegado("PIN incorrecto");
       tonoError();
       guardarLog("fail", "", "", "fail", "", -1);
       delay(2000);
+      digitalWrite(PIN_LED_RED, LOW);
       oledMostrarEnEspera();
       return;
     }
@@ -413,10 +420,13 @@ void loop() {
     // Si el usuario no tiene rostro enrolado en la web, la doble validación no puede completarse
     if (!faceEnrolled) {
       Serial.println("[Acceso] DENEGADO: El usuario no tiene rostro registrado en el sistema.");
+      digitalWrite(PIN_LED_GREEN, LOW);
+      digitalWrite(PIN_LED_RED, HIGH); // LED Rojo encendido (NO habilita)
       oledMostrarAccesoDenegado("Sin rostro reg.");
       tonoError();
       guardarLog("fail", userId, userName, "ok", "not_enrolled", -1);
       delay(2500);
+      digitalWrite(PIN_LED_RED, LOW);
       oledMostrarEnEspera();
       return;
     }
@@ -424,20 +434,20 @@ void loop() {
     // 2do Factor: Validación de rostro con el ESP32-CAM
     Serial.println("[Proceso] 2do Factor: Solicitando reconocimiento facial a la camara...");
     oledMostrarPidiendoRostro(userName);
-    digitalWrite(PIN_LED_GREEN, HIGH);
-    digitalWrite(PIN_LED_RED, HIGH); // Ambos LEDs titilando indican "mirando a cámara"
+    digitalWrite(PIN_LED_GREEN, LOW); // Ambos LEDs apagados mientras se captura foto
+    digitalWrite(PIN_LED_RED, LOW);
 
     FaceVerdict veredicto = solicitarVerificacionFacial(userId, 15000);
 
-    digitalWrite(PIN_LED_GREEN, LOW);
-    digitalWrite(PIN_LED_RED, LOW);
-
     if (veredicto.result == "match") {
       Serial.printf("[Acceso] PERMITIDO: Rostro validado con %.1f%% de coincidencia!\n", veredicto.confidence);
+      digitalWrite(PIN_LED_RED, LOW);
+      digitalWrite(PIN_LED_GREEN, HIGH); // LED Verde encendido (HABILITA)
       oledMostrarAccesoPermitido(userName, veredicto.confidence);
       tonoExito();
-      abrirCerradura();
+      abrirCerradura(); // Mantiene el LED Verde encendido mientras el motor opera
       guardarLog("success", userId, userName, "ok", "match", veredicto.confidence);
+      digitalWrite(PIN_LED_GREEN, LOW); // Se apaga al finalizar
       oledMostrarEnEspera();
 
     } else {
@@ -446,10 +456,13 @@ void loop() {
       if (veredicto.result == "timeout")       motivo = "Camara sin resp.";
       else if (veredicto.result == "no_face")  motivo = "Sin rostro cam.";
       else if (veredicto.result == "no_match") motivo = "No coincide";
+      digitalWrite(PIN_LED_GREEN, LOW);
+      digitalWrite(PIN_LED_RED, HIGH); // LED Rojo encendido (NO habilita)
       oledMostrarAccesoDenegado(motivo);
       tonoError();
       guardarLog("fail", userId, userName, "ok", veredicto.result, veredicto.confidence);
       delay(2500);
+      digitalWrite(PIN_LED_RED, LOW);
       oledMostrarEnEspera();
     }
 
@@ -576,7 +589,6 @@ void tonoError() {
   emitirTono(450, 220);
   delay(80);
   emitirTono(300, 380);
-  digitalWrite(PIN_LED_RED, LOW);
 }
 
 // Sonido de Acceso Permitido / Éxito: 3 tonos agudos ascendentes (triunfales)
@@ -587,7 +599,6 @@ void tonoExito() {
   emitirTono(2400, 110);
   delay(40);
   emitirTono(3200, 220);
-  digitalWrite(PIN_LED_GREEN, LOW);
 }
 
 // Sonido de obturador de cámara ("clic-clac") al capturar foto en el ESP32-CAM
