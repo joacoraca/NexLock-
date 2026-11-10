@@ -13,6 +13,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 #include <Preferences.h>
+#include <ESP32Servo.h>
 #include "mbedtls/sha256.h"
 
 // ── REDES WIFI PRECONFIGURADAS (Seleccionables con tecla 'D') ───────────────
@@ -78,10 +79,12 @@ const int PIN_LED_GREEN = 2;   // LEDV
 const int PIN_LED_RED   = 15;  // LEDR
 const int PIN_BUZZER    = 32;  // BUZZ
 
-// Driver Motor L298N (Cerradura electromecánica)
-const int PIN_MOTOR_ENA = 4;   // ENa
-const int PIN_MOTOR_IN1 = 16;  // IN1
-const int PIN_MOTOR_IN2 = 17;  // IN2
+// Actuador de Cerrojo: Servomotor MG90S con piñón y cremallera (barra dentada)
+// (Señal PWM en GPIO 4. Al quitar el driver L298N quedan libres GPIO 16 y 17)
+Servo cerrojoServo;
+const int PIN_SERVO = 4;
+const int ANGULO_BLOQUEADO    = 0;   // Grados con cremallera trabada / extendida
+const int ANGULO_DESBLOQUEADO = 90;  // Grados con cremallera abierta / retraída
 
 // Enlace UART con ESP32-CAM
 #define CAM_RX 19  // IO19 (RX2) <- Conecta a GPIO1 (TX) del ESP32-CAM
@@ -145,16 +148,20 @@ void setup() {
   pinMode(PIN_LED_GREEN, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
-  pinMode(PIN_MOTOR_ENA, OUTPUT);
-  pinMode(PIN_MOTOR_IN1, OUTPUT);
-  pinMode(PIN_MOTOR_IN2, OUTPUT);
 
   digitalWrite(PIN_LED_GREEN, LOW);
   digitalWrite(PIN_LED_RED, LOW);
   digitalWrite(PIN_BUZZER, LOW);
-  digitalWrite(PIN_MOTOR_ENA, LOW);
-  digitalWrite(PIN_MOTOR_IN1, LOW);
-  digitalWrite(PIN_MOTOR_IN2, LOW);
+
+  // Inicializar Servomotor MG90S para cerrojo (PWM en GPIO 4)
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  cerrojoServo.setPeriodHertz(50);              // 50 Hz estándar para MG90S
+  cerrojoServo.attach(PIN_SERVO, 500, 2400);    // Rango de pulso 500us - 2400us
+  cerrojoServo.write(ANGULO_BLOQUEADO);         // Posición de reposo: Bloqueado
+  Serial.printf("[Actuador] Servo MG90S configurado en GPIO %d (Posicion inicial: %d° - Bloqueado)\n", PIN_SERVO, ANGULO_BLOQUEADO);
 
   // Inicializar Pantalla OLED 1.30" (Controlador SH1106 en SDA:21, SCL:22)
   delay(250); // Tiempo para estabilizar alimentación del módulo OLED
@@ -556,19 +563,15 @@ FaceVerdict solicitarVerificacionFacial(const String& userId, uint32_t timeoutMs
 
 void abrirCerradura() {
   digitalWrite(PIN_LED_GREEN, HIGH);
-  Serial.println("[Actuador] Activando solenoide / motor de cerradura...");
-  // Pulso para activar motor en L298N
-  digitalWrite(PIN_MOTOR_IN1, HIGH);
-  digitalWrite(PIN_MOTOR_IN2, LOW);
-  digitalWrite(PIN_MOTOR_ENA, HIGH);
+  Serial.printf("[Actuador] Destrabando cerrojo MG90S -> Moviendo a %d°...\n", ANGULO_DESBLOQUEADO);
+  cerrojoServo.write(ANGULO_DESBLOQUEADO);
 
-  delay(3500); // 3.5 segundos con la puerta destrabada
+  delay(4000); // 4 segundos con la puerta abierta / pestillo retraído
 
-  digitalWrite(PIN_MOTOR_ENA, LOW);
-  digitalWrite(PIN_MOTOR_IN1, LOW);
-  digitalWrite(PIN_MOTOR_IN2, LOW);
+  Serial.printf("[Actuador] Trabando cerrojo MG90S -> Volviendo a %d°...\n", ANGULO_BLOQUEADO);
+  cerrojoServo.write(ANGULO_BLOQUEADO);
   digitalWrite(PIN_LED_GREEN, LOW);
-  Serial.println("[Actuador] Cerradura bloqueada nuevamente.");
+  Serial.println("[Actuador] Cerrojo bloqueado nuevamente.");
 }
 
 // Emite un tono seguro que funciona tanto en buzzers activos como pasivos
